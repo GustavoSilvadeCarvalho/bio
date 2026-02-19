@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { ArrowUpRight } from "lucide-react"
+import LogoGLB from './LogoGLB'
 
 const tabs = [
     { label: "HOME", href: "#" },
@@ -42,15 +43,9 @@ export function Navbar() {
 
     return (
         <header className="fixed top-0 left-0 right-0 z-50 bg-[#09090b]/90 backdrop-blur-xl">
-            <div className="mx-auto flex max-w-350 items-center justify-between px-6 py-5">
+            <div className="mx-auto flex max-w-350 items-center justify-between px-6">
                 <Link href="/" className="flex items-center gap-2">
-                    <Image
-                        src="/logo_broken.png"
-                        alt="linkz.bio logo"
-                        width={102}
-                        height={102}
-                        className="rounded-sm"
-                    />
+                    <LogoGLB size={110} />
                 </Link>
 
 

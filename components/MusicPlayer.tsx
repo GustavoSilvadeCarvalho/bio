@@ -174,6 +174,20 @@ export function MusicPlayer({ url, cardColor, showCard = true, glass = false, op
     const { playing, loading, ready, time, dur, title, toggle, seek } =
         useYTPlayer(url)
 
+    const [showPlayPrompt, setShowPlayPrompt] = useState(false)
+
+    useEffect(() => {
+        // try to trigger play on ready (may be blocked by browser); if blocked, show play prompt
+        if (!ready) return
+        if (playing) { setShowPlayPrompt(false); return }
+        // attempt to play once (user gesture may be required)
+        try { toggle() } catch { }
+        const id = setTimeout(() => {
+            if (!playing) setShowPlayPrompt(true)
+        }, 700)
+        return () => clearTimeout(id)
+    }, [ready])
+
     const barRef = useRef<HTMLDivElement>(null)
     const dragging = useRef(false)
 
@@ -251,6 +265,11 @@ export function MusicPlayer({ url, cardColor, showCard = true, glass = false, op
                 >
                     <Music className="h-5 w-5 text-white" strokeWidth={2.2} />
                 </div>
+                {showPlayPrompt && (
+                    <div className="mt-3 flex justify-center">
+                        <button onClick={() => { setShowPlayPrompt(false); try { toggle() } catch { } }} className="px-4 py-2 rounded-md bg-white/6 hover:bg-white/10 text-sm">Tocar música</button>
+                    </div>
+                )}
 
                 <div className="min-w-0 flex-1">
                     <p className="truncate text-[13px] font-semibold leading-tight text-[#e8e8ec]">
