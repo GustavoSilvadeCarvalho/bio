@@ -3,10 +3,6 @@
 import { useEffect, useRef, useCallback, useState } from "react"
 import { Music, Play, Pause, Loader2 } from "lucide-react"
 
-/* ------------------------------------------------------------------ */
-/*  YouTube IFrame helpers                                            */
-/* ------------------------------------------------------------------ */
-
 declare global {
     interface Window {
         YT: typeof YT
@@ -46,10 +42,6 @@ function loadYTApi(): Promise<void> {
         document.head.appendChild(s)
     })
 }
-
-/* ------------------------------------------------------------------ */
-/*  Hook                                                              */
-/* ------------------------------------------------------------------ */
 
 function useYTPlayer(url: string) {
     const [playing, setPlaying] = useState(false)
@@ -164,26 +156,21 @@ function useYTPlayer(url: string) {
     return { playing, loading, ready, time, dur, title, toggle, seek }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                           */
-/* ------------------------------------------------------------------ */
-
 function fmt(s: number) {
     const m = Math.floor(s / 60)
     const sec = Math.floor(s % 60)
     return `${m}:${sec.toString().padStart(2, "0")}`
 }
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                         */
-/* ------------------------------------------------------------------ */
-
 interface MusicPlayerProps {
-    /** Any YouTube URL (watch, youtu.be, embed, shorts) */
     url: string
+    cardColor?: string
+    showCard?: boolean
+    glass?: boolean
+    opacity?: number
 }
 
-export function MusicPlayer({ url }: MusicPlayerProps) {
+export function MusicPlayer({ url, cardColor, showCard = true, glass = false, opacity = 1 }: MusicPlayerProps) {
     const { playing, loading, ready, time, dur, title, toggle, seek } =
         useYTPlayer(url)
 
@@ -192,7 +179,6 @@ export function MusicPlayer({ url }: MusicPlayerProps) {
 
     const pct = dur > 0 ? (time / dur) * 100 : 0
 
-    /* pointer helpers for the progress bar */
     const seekFromEvent = useCallback(
         (e: React.PointerEvent | PointerEvent) => {
             const rect = barRef.current?.getBoundingClientRect()
@@ -224,9 +210,40 @@ export function MusicPlayer({ url }: MusicPlayerProps) {
         dragging.current = false
     }, [])
 
+    if (!showCard) {
+        return null
+    }
+
+    function hexToRgba(hex: string, a = 1) {
+        try {
+            const h = hex.replace('#', '').trim();
+            const bigint = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+            const r = (bigint >> 16) & 255;
+            const g = (bigint >> 8) & 255;
+            const b = bigint & 255;
+            return `rgba(${r}, ${g}, ${b}, ${a})`;
+        } catch { return `rgba(255,255,255,${a})`; }
+    }
+
+    let bg: string | undefined;
+    if (cardColor) {
+        if (glass) {
+            const alpha = Math.max(0.02, Math.min(1, (opacity ?? 1) * 0.28));
+            bg = hexToRgba(cardColor, alpha);
+        } else {
+            bg = hexToRgba(cardColor, opacity ?? 1);
+        }
+    }
+
+    const containerStyle: React.CSSProperties & Record<string, string | number | undefined> = { backgroundColor: bg };
+    if (glass) {
+        containerStyle.backdropFilter = 'blur(8px)';
+        containerStyle.WebkitBackdropFilter = 'blur(8px)';
+        containerStyle.border = '1px solid rgba(255,255,255,0.06)';
+    }
+
     return (
-        <div className="flex w-full select-none flex-col gap-4 rounded-xl bg-white/5 hover:bg-white/10 p-5 border border-white/5 transition-all">
-            {/* top row: icon + info */}
+        <div style={containerStyle} className="flex w-full select-none flex-col gap-4 rounded-xl p-5 transition-all">
             <div className="flex items-center gap-3.5">
                 <div
                     className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/5 ${playing ? "animate-pulse" : ""
@@ -242,7 +259,6 @@ export function MusicPlayer({ url }: MusicPlayerProps) {
                 </div>
             </div>
 
-            {/* progress + play on same row */}
             <div className="flex items-center gap-4">
                 <div className="flex-1 flex flex-col gap-1.5">
                     <div
@@ -258,21 +274,18 @@ export function MusicPlayer({ url }: MusicPlayerProps) {
                         onPointerUp={onPointerUp}
                         className="group relative h-5 cursor-pointer touch-none"
                     >
-                        {/* track */}
                         <div className="absolute left-0 top-1/2 h-1.25 w-full -translate-y-1/2 overflow-hidden rounded-full bg-[#1c1c1f]">
                             <div
                                 className="h-full rounded-full bg-white/80 transition-[width] duration-100"
                                 style={{ width: `${pct}%` }}
                             />
                         </div>
-                        {/* thumb */}
                         <div
                             className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/10 opacity-0 shadow-md transition-opacity group-hover:opacity-100"
                             style={{ left: `${pct}%` }}
                         />
                     </div>
 
-                    {/* times */}
                     <div className="flex justify-between px-0.5">
                         <span className="text-[10px] tabular-nums text-[#6e6e78]">{fmt(time)}</span>
                         <span className="text-[10px] tabular-nums text-[#6e6e78]">{fmt(dur)}</span>

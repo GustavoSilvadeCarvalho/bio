@@ -7,6 +7,15 @@ import { FaXTwitter } from "react-icons/fa6";
 import { IoMdAdd } from "react-icons/io";
 import { MusicPlayer } from "./MusicPlayer";
 import { createClient } from "@supabase/supabase-js";
+import TiltWrapper from "./TiltWrapper";
+import SocialIcons from "./SocialIcons";
+import MouseParticles from './MouseParticles';
+import dynamic from 'next/dynamic';
+import { normalizeLinks, resolveMusicUrl } from '../lib/profileUtils';
+import type { Profile, Link, CardItem } from '../lib/types';
+
+const ProfilePanel = dynamic(() => import('./ProfilePanel'), { ssr: false, loading: () => null });
+const LinksPanel = dynamic(() => import('./LinksPanel'), { ssr: false, loading: () => null });
 
 interface ProfileCardProps {
     username: string;
@@ -14,19 +23,7 @@ interface ProfileCardProps {
 }
 
 export default function ProfileCard({ username, onBgColorChange }: ProfileCardProps) {
-    interface Profile {
-        id?: string;
-        username?: string;
-        full_name?: string | null;
-        avatar_url?: string | null;
-        background_color?: string | null;
-        theme?: string | null;
-        links?: any;
-        music_url?: string | null;
-        views?: number | null;
-        settings?: any;
-        updated_at?: string | null;
-    }
+
 
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
@@ -40,20 +37,44 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
         if (!NEXT_URL || !NEXT_KEY) return;
         const sb = createClient(NEXT_URL, NEXT_KEY);
         let mounted = true;
-        sb.auth.getSession().then((res: any) => {
+        sb.auth.getSession().then((res) => {
             const session = res?.data?.session;
             if (!mounted) return;
             if (session?.user) setCurrentUser({ id: session.user.id, token: session.access_token });
-        }).catch(() => { });
+        }).catch(() => { /* ignore */ });
         return () => { mounted = false; };
     }, []);
 
     const [editing, setEditing] = useState(false);
     const [draftName, setDraftName] = useState("");
+    const [draftDescription, setDraftDescription] = useState("");
     const [draftMusic, setDraftMusic] = useState("");
-    const [draftLinks, setDraftLinks] = useState<Array<{ platform: string; url: string }>>([]);
+    const [draftLinks, setDraftLinks] = useState<Link[]>([]);
     const [draftCardColor, setDraftCardColor] = useState<string>("");
     const [draftPageColor, setDraftPageColor] = useState<string>("");
+    const [draftPageImage, setDraftPageImage] = useState<string | null>(null);
+    const [draftCardOpacity, setDraftCardOpacity] = useState<number>(1);
+    const [draftMusicCardColor, setDraftMusicCardColor] = useState<string>("");
+    const [draftMusicCardGlass, setDraftMusicCardGlass] = useState<boolean>(false);
+    const [draftMusicCardOpacity, setDraftMusicCardOpacity] = useState<number>(1);
+    const [draftParticlesEnabled, setDraftParticlesEnabled] = useState<boolean>(true);
+    const [draftParticlesColor, setDraftParticlesColor] = useState<string>('#58a6ff');
+    const [draftParticlesCount, setDraftParticlesCount] = useState<number>(3);
+    const [draftParticlesSize, setDraftParticlesSize] = useState<number>(4);
+    const [draftParticlesLife, setDraftParticlesLife] = useState<number>(60);
+    const [draftCardGlass, setDraftCardGlass] = useState<boolean>(false);
+    const [draftCardItems, setDraftCardItems] = useState<Array<{ icon?: string; title?: string; subtitle?: string; url?: string }>>([
+        { icon: 'github', title: 'GitHub', subtitle: `github.com/${username}`, url: `https://github.com/${username}` },
+        { icon: 'discord', title: 'Discord', subtitle: 'Invite', url: '#' },
+    ]);
+    const [draftMusicEnabled, setDraftMusicEnabled] = useState<boolean>(true);
+    const [draftShowMusicCard, setDraftShowMusicCard] = useState<boolean>(true);
+    const [tiltStrength, setTiltStrength] = useState<number>(50);
+    const [musicSectionOpen, setMusicSectionOpen] = useState<boolean>(false);
+    const [particlesSectionOpen, setParticlesSectionOpen] = useState<boolean>(false);
+    const [closingPanels, setClosingPanels] = useState(false);
+    const [draftAvatarUrl, setDraftAvatarUrl] = useState<string | null>(null);
+    const [avatarUploading, setAvatarUploading] = useState(false);
 
     const [signEmail, setSignEmail] = useState("");
     const [signMessage, setSignMessage] = useState<string | null>(null);
@@ -73,7 +94,7 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
             const { error } = await sb.auth.signInWithOtp({ email: signEmail });
             if (error) setSignMessage(error.message);
             else setSignMessage("Link enviado — verifique seu e-mail (pode demorar alguns minutos)");
-        } catch (err: any) {
+        } catch (err: unknown) {
             setSignMessage(String(err));
         } finally {
             setSignLoading(false);
@@ -82,22 +103,31 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
 
     useEffect(() => {
         if (profile) {
-            setDraftName(profile.full_name ?? "");
-            setDraftMusic(profile.music_url ?? "");
+            setDraftName(profile.full_name ?? profile.username ?? username ?? "");
+            setDraftDescription(profile.description ?? "");
+            setDraftMusic(profile.music_url ?? profile.settings?.music_url ?? "");
             setDraftCardColor(profile.background_color ?? "");
-            setDraftPageColor((profile.settings && profile.settings.page_background_color) ?? "");
-            if (profile.links) {
-                try {
-                    const l = profile.links;
-                    if (Array.isArray(l)) setDraftLinks(l as any);
-                    else if (typeof l === 'object') setDraftLinks(Object.entries(l).map(([k, v]) => ({ platform: k, url: String(v) })));
-                    else setDraftLinks([]);
-                } catch (e) {
-                    setDraftLinks([]);
-                }
-            } else {
-                setDraftLinks([]);
-            }
+            setDraftPageColor(profile.settings?.page_background_color ?? "");
+            setDraftMusicCardColor(profile.settings?.music_card_color ?? "");
+            setDraftMusicCardGlass(typeof profile.settings?.music_card_glass === 'boolean' ? !!profile.settings!.music_card_glass : false);
+            setDraftMusicCardOpacity(typeof profile.settings?.music_card_opacity === 'number' ? profile.settings!.music_card_opacity! : 1);
+            setDraftParticlesEnabled(typeof profile.settings?.mouse_particles === 'boolean' ? !!profile.settings!.mouse_particles : true);
+            setDraftParticlesColor(profile.settings?.mouse_particles_color ?? '#58a6ff');
+            setDraftParticlesCount(typeof profile.settings?.mouse_particles_count === 'number' ? profile.settings!.mouse_particles_count! : 3);
+            setDraftParticlesSize(typeof profile.settings?.mouse_particles_size === 'number' ? profile.settings!.mouse_particles_size! : 4);
+            setDraftParticlesLife(typeof profile.settings?.mouse_particles_life === 'number' ? profile.settings!.mouse_particles_life! : 60);
+            setTiltStrength(profile.settings?.tilt_strength ?? 50);
+            setDraftMusicEnabled(typeof profile.settings?.music_enabled === 'boolean' ? !!profile.settings!.music_enabled : true);
+            setDraftShowMusicCard(typeof profile.settings?.show_music_card === 'boolean' ? !!profile.settings!.show_music_card : true);
+            setDraftAvatarUrl(profile.avatar_url ?? null);
+            setDraftPageImage(profile.settings?.page_background_image ?? null);
+            setDraftCardOpacity(typeof profile.settings?.card_opacity === 'number' ? profile.settings!.card_opacity! : 1);
+            setDraftCardGlass(typeof profile.settings?.card_glass === 'boolean' ? !!profile.settings!.card_glass : false);
+            setDraftLinks(normalizeLinks(profile.links));
+            setDraftCardItems(profile.settings?.card_links ?? [
+                { icon: 'github', title: 'GitHub', subtitle: `github.com/${username}`, url: `https://github.com/${username}` },
+                { icon: 'discord', title: 'Discord', subtitle: 'Invite', url: '#' },
+            ]);
         }
     }, [profile]);
 
@@ -120,9 +150,9 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
                     }
                     return;
                 }
-                const data = await res.json();
+                const data = await res.json() as Profile;
                 if (mounted) setProfile(data);
-            } catch (err: any) {
+            } catch (err: unknown) {
                 if (mounted) setError(String(err));
             } finally {
                 if (mounted) setLoading(false);
@@ -148,10 +178,12 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
                 },
                 body: JSON.stringify({
                     full_name: draftName || null,
+                    description: draftDescription || null,
                     music_url: draftMusic || null,
+                    avatar_url: draftAvatarUrl || null,
                     links: draftLinks && draftLinks.length ? draftLinks : null,
                     background_color: draftCardColor || null,
-                    settings: { ...(profile?.settings || {}), page_background_color: draftPageColor || null },
+                    settings: { ...(profile?.settings || {}), page_background_color: draftPageColor ?? null, page_background_image: draftPageImage ?? null, card_opacity: draftCardOpacity ?? 1, card_glass: draftCardGlass ?? false, music_card_color: draftMusicCardColor ?? null, music_card_glass: draftMusicCardGlass ?? false, music_card_opacity: draftMusicCardOpacity ?? 1, mouse_particles: draftParticlesEnabled ?? true, mouse_particles_color: draftParticlesColor ?? '#58a6ff', mouse_particles_count: draftParticlesCount ?? 3, mouse_particles_size: draftParticlesSize ?? 4, mouse_particles_life: draftParticlesLife ?? 60, music_enabled: draftMusicEnabled, show_music_card: draftShowMusicCard, tilt_strength: tiltStrength, card_links: draftCardItems },
                 }),
             });
             if (!res.ok) {
@@ -160,10 +192,25 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
                 return;
             }
             const updated = await res.json();
-            setProfile(updated);
-            setEditing(false);
+            const newProfile = (updated && (updated.data ?? updated)) as unknown as Profile;
+            try {
+                const fresh = await fetch(`/api/profiles/${username}`);
+                if (fresh.ok) {
+                    const freshJson = await fresh.json();
+                    setProfile(freshJson as Profile);
+                } else {
+                    setProfile(newProfile);
+                }
+            } catch (_e) {
+                setProfile(newProfile);
+            }
+            setClosingPanels(true);
+            setTimeout(() => {
+                setClosingPanels(false);
+                setEditing(false);
+            }, 320);
             setError(null);
-        } catch (err: any) {
+        } catch (err: unknown) {
             setError(String(err));
         }
     }
@@ -174,138 +221,386 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
-        if (typeof onBgColorChange !== 'function') return;
-        const color = editing ? (draftPageColor || undefined) : (profile?.settings?.page_background_color || undefined);
-        try { onBgColorChange(color); } catch (e) { }
-    }, [editing, draftPageColor, profile?.settings, onBgColorChange]);
+        try {
+            const el = document.body;
+            const img = editing ? draftPageImage ?? undefined : profile?.settings?.page_background_image ?? undefined;
+            const color = editing ? (draftPageColor || undefined) : profile?.settings?.page_background_color ?? undefined;
+            if (img) {
+                el.style.backgroundImage = `url("${img}")`;
+                el.style.backgroundSize = 'cover';
+                el.style.backgroundPosition = 'center';
+                el.style.backgroundRepeat = 'no-repeat';
+                el.style.backgroundAttachment = 'fixed';
+                el.style.backgroundColor = '';
+            } else if (color) {
+                el.style.backgroundImage = '';
+                el.style.backgroundColor = color as string;
+            } else {
+                el.style.background = '';
+            }
+            try {
+                if (typeof onBgColorChange === 'function') {
+                    const bgValue = img ? `url("${img}") center/cover fixed` : (color ?? undefined);
+                    try { onBgColorChange(bgValue); } catch { }
+                }
+            } catch { }
+        } catch { }
+    }, [editing, draftPageColor, draftPageImage, profile?.settings, onBgColorChange]);
+
+    async function handleAvatarFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const f = e.target.files?.[0];
+        if (!f) return;
+        const NEXT_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const NEXT_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (!NEXT_URL || !NEXT_KEY) {
+            setError('Supabase client not configured for uploads');
+            return;
+        }
+        try {
+            if (!f.type.startsWith('image/')) {
+                setError('Arquivo não é uma imagem');
+                return;
+            }
+            const MAX_MB = 8;
+            if (f.size > MAX_MB * 1024 * 1024) {
+                setError(`Arquivo muito grande (max ${MAX_MB}MB)`);
+                return;
+            }
+
+            setAvatarUploading(true);
+            const sb = createClient(NEXT_URL, NEXT_KEY);
+            const fileName = `${username}-${Date.now()}-${f.name}`;
+
+            const res = await sb.storage.from('avatars').upload(fileName, f, { upsert: true });
+            if (res.error) {
+                setError(res.error.message || JSON.stringify(res.error));
+                setAvatarUploading(false);
+                return;
+            }
+
+            const publicRes = sb.storage.from('avatars').getPublicUrl(fileName);
+            const publicUrl = publicRes?.data?.publicUrl ?? null;
+            if (!publicUrl) {
+                setError('Não foi possível obter URL pública do avatar');
+            }
+            setDraftAvatarUrl(publicUrl);
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            setError(msg);
+        } finally {
+            setAvatarUploading(false);
+        }
+    }
+
+    async function handleBgFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const f = e.target.files?.[0];
+        if (!f) return;
+        const NEXT_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const NEXT_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (!NEXT_URL || !NEXT_KEY) {
+            setError('Supabase client not configured for uploads');
+            return;
+        }
+        try {
+            if (!f.type.startsWith('image/') && !f.type.startsWith('video/')) {
+                setError('Arquivo não é uma imagem ou vídeo');
+                return;
+            }
+            const MAX_MB = 16;
+            if (f.size > MAX_MB * 1024 * 1024) {
+                setError(`Arquivo muito grande (max ${MAX_MB}MB)`);
+                return;
+            }
+
+            setAvatarUploading(true);
+            const sb = createClient(NEXT_URL, NEXT_KEY);
+            const fileName = `background-${username}-${Date.now()}-${f.name}`;
+
+            const res = await sb.storage.from('backgrounds').upload(fileName, f, { upsert: true });
+            if (res.error) {
+                setError(res.error.message || JSON.stringify(res.error));
+                setAvatarUploading(false);
+                return;
+            }
+
+            const publicRes = sb.storage.from('backgrounds').getPublicUrl(fileName);
+            const publicUrl = publicRes?.data?.publicUrl ?? null;
+            if (!publicUrl) {
+                setError('Não foi possível obter URL pública do background');
+            }
+            setDraftPageImage(publicUrl);
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            setError(msg);
+        } finally {
+            setAvatarUploading(false);
+        }
+    }
+
+    function handleCancelEdit() {
+        setDraftName(profile?.full_name ?? profile?.username ?? username ?? "");
+        setDraftMusic(profile?.music_url ?? profile?.settings?.music_url ?? "");
+        setDraftCardColor(profile?.background_color ?? "");
+        setDraftPageColor(profile?.settings?.page_background_color ?? "");
+        setDraftAvatarUrl(profile?.avatar_url ?? null);
+        setDraftMusicEnabled(typeof profile?.settings?.music_enabled === 'boolean' ? !!profile!.settings!.music_enabled : true);
+        setDraftShowMusicCard(typeof profile?.settings?.show_music_card === 'boolean' ? !!profile!.settings!.show_music_card : true);
+        setTiltStrength(profile?.settings?.tilt_strength ?? 50);
+        setDraftDescription(profile?.description ?? "");
+        setDraftMusicCardOpacity(typeof profile?.settings?.music_card_opacity === 'number' ? profile!.settings!.music_card_opacity! : 1);
+        setDraftParticlesEnabled(typeof profile?.settings?.mouse_particles === 'boolean' ? !!profile!.settings!.mouse_particles : true);
+        setDraftParticlesColor(profile?.settings?.mouse_particles_color ?? '#58a6ff');
+        setDraftParticlesCount(typeof profile?.settings?.mouse_particles_count === 'number' ? profile!.settings!.mouse_particles_count! : 3);
+        setDraftParticlesSize(typeof profile?.settings?.mouse_particles_size === 'number' ? profile!.settings!.mouse_particles_size! : 4);
+        setDraftParticlesLife(typeof profile?.settings?.mouse_particles_life === 'number' ? profile!.settings!.mouse_particles_life! : 60);
+        if (profile) {
+            setDraftLinks(normalizeLinks(profile.links));
+        } else {
+            setDraftLinks([]);
+        }
+        setClosingPanels(true);
+        setTimeout(() => { setClosingPanels(false); setEditing(false); }, 320);
+    }
+
+
+
+    const avatarSrc = draftAvatarUrl ?? profile?.avatar_url ?? `https://github.com/${username}.png`;
+
+    function hexToRgba(hex: string, alpha = 1) {
+        try {
+            const h = hex.replace('#', '').trim();
+            const bigint = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+            const r = (bigint >> 16) & 255;
+            const g = (bigint >> 8) & 255;
+            const b = bigint & 255;
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        } catch { return `rgba(255,255,255,${alpha})`; }
+    }
+
+    function getIconForPlatform(platformOrUrl: string): React.ComponentType<{ className?: string }> {
+        const p = (platformOrUrl || '').toLowerCase();
+        if (p.includes('discord')) return FaDiscord;
+        if (p.includes('steam')) return FaSteam;
+        if (p.includes('youtube') || p.includes('youtu')) return FaYoutube;
+        if (p.includes('twitch')) return FaTwitch;
+        if (p.includes('tiktok')) return FaTiktok;
+        if (p.includes('instagram')) return FaInstagram;
+        if (p.includes('github')) return FaGithub;
+        if (p === 'x' || p.includes('twitter') || p.includes('x.com')) return FaXTwitter;
+        return FaGithub;
+    }
+
+    function displayUrl(raw: string) {
+        try {
+            const u = new URL(raw);
+            return u.hostname.replace('www.', '');
+        } catch {
+            if (!raw) return '';
+            return raw.length > 24 ? raw.slice(0, 21) + '...' : raw;
+        }
+    }
+
+    const cardBaseColor = editing ? draftCardColor : (profile?.background_color ?? undefined);
+    const cardGlassActive = editing ? draftCardGlass : !!profile?.settings?.card_glass;
+    const cardOpacity = editing ? draftCardOpacity : profile?.settings?.card_opacity ?? 1;
+    const particlesActive = editing ? draftParticlesEnabled : !!profile?.settings?.mouse_particles;
+    let computedCardBg: string | undefined;
+    if (cardGlassActive) {
+        const baseAlpha = cardBaseColor ? 0.28 : 0.04;
+        const alpha = Math.max(0, Math.min(1, baseAlpha * (cardOpacity ?? 1)));
+        computedCardBg = cardBaseColor ? hexToRgba(cardBaseColor, alpha) : `rgba(255,255,255,${alpha})`;
+    } else {
+        computedCardBg = cardBaseColor ? hexToRgba(cardBaseColor, (cardOpacity ?? 1)) : undefined;
+    }
+    const computedInnerStyle: React.CSSProperties & Record<string, string | number | undefined> = { backgroundColor: computedCardBg, transformStyle: 'preserve-3d', transition: 'transform 80ms cubic-bezier(.2,.9,.2,1)', cursor: particlesActive ? 'none' : undefined };
+    if (cardGlassActive) {
+        computedInnerStyle.backdropFilter = 'blur(10px)';
+        computedInnerStyle.WebkitBackdropFilter = 'blur(10px)';
+        computedInnerStyle.border = '1px solid rgba(255,255,255,0.06)';
+    }
 
     return (
-        <div className="relative w-full max-w-3xl bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-[0_0_40px_rgba(0,0,0,0.5)] flex flex-col gap-8" style={{ backgroundColor: (editing ? draftCardColor : profile?.background_color) || undefined }}>
-            <div className="absolute left-6 top-6 flex items-center gap-2 bg-black/5 text-white/90 px-3 py-1 rounded-full border border-white/2">
-                <FaEye className="text-sm" />
-                <span className="text-sm font-medium">{views.toLocaleString()}</span>
-            </div>
-            <div className="flex flex-col items-center text-center">
-                <div className="relative group">
-                    <div className="w-32 h-32 rounded-full border-4 overflow-hidden shadow-xl transition-all duration-500 border-white/10">
-                        <Image src={profile?.avatar_url ?? `https://github.com/${username}.png`} alt={`${username} avatar`} width={128} height={128} className="w-full h-full object-cover transition-transform duration-[10s]" />
-                    </div>
+        <>
+            <TiltWrapper outerClassName="w-[800px] flex justify-center" perspective={1000} maxRotate={tiltStrength} scale={1.03} innerClassName="relative w-full max-w-3xl bg-transparent border border-white/10 rounded-3xl p-8 shadow-[0_0_40px_rgba(0,0,0,0.5)] flex flex-col gap-8" innerStyle={computedInnerStyle}>
+                {(editing ? draftParticlesEnabled : !!profile?.settings?.mouse_particles) && (
+                    <MouseParticles
+                        color={editing ? draftParticlesColor : profile?.settings?.mouse_particles_color ?? '#58a6ff'}
+                        count={editing ? draftParticlesCount : profile?.settings?.mouse_particles_count ?? 3}
+                        size={editing ? draftParticlesSize : profile?.settings?.mouse_particles_size ?? 4}
+                        life={editing ? draftParticlesLife : profile?.settings?.mouse_particles_life ?? 60}
+                    />
+                )}
+                <div className="absolute left-6 top-6 flex items-center gap-2 bg-black/5 text-white/90 px-3 py-1 rounded-full border border-white/2">
+                    <FaEye className="text-sm" />
+                    <span className="text-sm font-medium">{views.toLocaleString()}</span>
                 </div>
-                <h1 className="mt-4 text-3xl font-bold tracking-tight text-gray-300">{loading ? 'Loading…' : profile?.full_name ?? username}</h1>
-                {error && <p className="text-sm text-red-400 mt-2">{error}</p>}
-                {!currentUser && (
-                    <div className="mt-3 w-full max-w-md">
-                        <p className="text-sm text-gray-400">Faça login para editar sua página.</p>
-                        <div className="flex gap-2 mt-2">
-                            <input aria-label="email" placeholder="seu@email.com" className="flex-1 p-2 rounded bg-white/3 border border-white/5 text-white" value={signEmail} onChange={(e) => setSignEmail(e.target.value)} />
-                            <button className="px-3 py-2 bg-blue-600 rounded text-sm" onClick={handleSendMagicLink} disabled={!signEmail || signLoading}>{signLoading ? 'Enviando...' : 'Enviar link'}</button>
+                <div className="flex flex-col items-center text-center">
+                    <div className="relative group">
+                        <div className="w-32 h-32 rounded-full border-4 overflow-hidden shadow-xl transition-all duration-500 border-white/10">
+                            {typeof avatarSrc === 'string' && (avatarSrc.toLowerCase().endsWith('.gif') || avatarSrc.toLowerCase().includes('.gif')) ? (
+                                <img src={avatarSrc} alt={`${username} avatar`} width={128} height={128} className="w-full h-full object-cover transition-transform duration-[10s]" />
+                            ) : (
+                                <Image src={avatarSrc as string} alt={`${username} avatar`} width={128} height={128} className="w-full h-full object-cover transition-transform duration-[10s]" />
+                            )}
                         </div>
-                        {signMessage && <p className="text-sm mt-2 text-yellow-300">{signMessage}</p>}
                     </div>
-                )}
-                {canEdit && !editing && (
-                    <div className="mt-3">
-                        <button className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-md text-sm" onClick={() => setEditing(true)}>Edit profile</button>
-                    </div>
-                )}
-                {editing && (
-                    <div className="mt-3 w-full max-w-lg">
-                        <label className="block text-sm text-gray-300">Full name</label>
-                        <input className="w-full mt-1 p-2 rounded bg-white/3 border border-white/5 text-white" value={draftName} onChange={(e) => setDraftName(e.target.value)} />
-                        <label className="block text-sm text-gray-300 mt-2">Music URL</label>
-                        <input className="w-full mt-1 p-2 rounded bg-white/3 border border-white/5 text-white" value={draftMusic} onChange={(e) => setDraftMusic(e.target.value)} />
-                        <label className="block text-sm text-gray-300 mt-4">Cor do card</label>
-                        <div className="flex gap-2 mt-2 items-center">
-                            <input type="color" className="w-12 h-10 p-1 rounded bg-white/3 border border-white/5" value={draftCardColor || '#000000'} onChange={(e) => setDraftCardColor(e.target.value)} />
-                            <input placeholder="#rrggbb" className="flex-1 p-2 rounded bg-white/3 border border-white/5 text-white" value={draftCardColor} onChange={(e) => setDraftCardColor(e.target.value)} />
-                        </div>
-                        <label className="block text-sm text-gray-300 mt-4">Cor da página</label>
-                        <div className="flex gap-2 mt-2 items-center">
-                            <input type="color" className="w-12 h-10 p-1 rounded bg-white/3 border border-white/5" value={draftPageColor || '#000000'} onChange={(e) => setDraftPageColor(e.target.value)} />
-                            <input placeholder="#rrggbb" className="flex-1 p-2 rounded bg-white/3 border border-white/5 text-white" value={draftPageColor} onChange={(e) => setDraftPageColor(e.target.value)} />
-                        </div>
-                        <label className="block text-sm text-gray-300 mt-4">Links</label>
-                        <div className="mt-2 space-y-2">
-                            {draftLinks.map((l, i) => (
-                                <div key={`link-${i}`} className="flex gap-2">
-                                    <select className="flex-[0.4] p-2 rounded bg-white/3 border border-white/5 text-white" value={l.platform} onChange={(e) => updateLink(i, 'platform', e.target.value)}>
-                                        <option value="">Plataforma...</option>
-                                        <option value="youtube">YouTube</option>
-                                        <option value="twitch">Twitch</option>
-                                        <option value="tiktok">TikTok</option>
-                                        <option value="discord">Discord</option>
-                                        <option value="steam">Steam</option>
-                                        <option value="github">GitHub</option>
-                                        <option value="instagram">Instagram</option>
-                                        <option value="twitter">Twitter</option>
-                                    </select>
-                                    <input placeholder="https://..." className="flex-1 p-2 rounded bg-white/3 border border-white/5 text-white" value={l.url} onChange={(e) => updateLink(i, 'url', e.target.value)} />
-                                    <button className="px-3 py-2 bg-red-600 rounded text-sm" onClick={() => removeLink(i)} type="button">Remover</button>
-                                </div>
-                            ))}
-                            <div>
-                                <button type="button" onClick={addLink} className="px-3 py-3 bg-white/10 rounded text-sm"><IoMdAdd /></button>
+                    <h1 className="mt-4 text-3xl font-bold tracking-tight text-gray-300">{loading ? 'Loading…' : profile?.full_name ?? username}</h1>
+                    {(editing ? draftDescription : profile?.description) ? (
+                        <p className="mt-2 text-sm text-gray-400">{editing ? draftDescription : profile?.description}</p>
+                    ) : null}
+                    {error && <p className="text-sm text-red-400 mt-2">{error}</p>}
+                    {!currentUser && (
+                        <div className="mt-3 w-full max-w-md">
+                            <p className="text-sm text-gray-400">Faça login para editar sua página.</p>
+                            <div className="flex gap-2 mt-2">
+                                <input aria-label="email" placeholder="seu@email.com" className="flex-1 p-2 rounded bg-white/3 border border-white/5 text-white" value={signEmail} onChange={(e) => setSignEmail(e.target.value)} />
+                                <button className="px-3 py-2 bg-blue-600 rounded text-sm" onClick={handleSendMagicLink} disabled={!signEmail || signLoading}>{signLoading ? 'Enviando...' : 'Enviar link'}</button>
                             </div>
+                            {signMessage && <p className="text-sm mt-2 text-yellow-300">{signMessage}</p>}
                         </div>
-                        <div className="flex gap-2 mt-3">
-                            <button className="px-4 py-2 bg-green-600 rounded text-sm" onClick={handleSave}>Save</button>
-                            <button className="px-4 py-2 bg-white/5 rounded text-sm" onClick={() => {
-                                setEditing(false);
-                                setDraftName(profile?.full_name ?? "");
-                                setDraftMusic(profile?.music_url ?? "");
+                    )}
+                    {canEdit && !editing && (
+                        <div className="mt-3">
+                            <button className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-md text-sm" onClick={() => {
+                                setEditing(true);
+                                setDraftName(profile?.full_name ?? profile?.username ?? username ?? "");
+                                setDraftMusic(profile?.music_url ?? profile?.settings?.music_url ?? "");
                                 setDraftCardColor(profile?.background_color ?? "");
-                                setDraftPageColor((profile?.settings && profile.settings.page_background_color) ?? "");
+                                setDraftPageColor(profile?.settings?.page_background_color ?? "");
                                 if (profile) {
-                                    if (profile.links) {
-                                        if (Array.isArray(profile.links)) setDraftLinks(profile.links as any);
-                                        else if (typeof profile.links === 'object') setDraftLinks(Object.entries(profile.links).map(([k, v]) => ({ platform: k, url: String(v) })));
-                                        else setDraftLinks([]);
-                                    } else {
-                                        setDraftLinks([]);
-                                    }
+                                    setDraftLinks(normalizeLinks(profile.links));
                                 } else {
                                     setDraftLinks([]);
                                 }
-                            }}>Cancel</button>
+                                setDraftAvatarUrl(profile?.avatar_url ?? null);
+                                setDraftMusicCardColor((profile?.settings && profile.settings.music_card_color) ?? "");
+                                setDraftMusicEnabled((profile?.settings && typeof profile.settings.music_enabled === 'boolean') ? !!profile.settings.music_enabled : true);
+                                setDraftShowMusicCard((profile?.settings && typeof profile.settings.show_music_card === 'boolean') ? !!profile.settings.show_music_card : true);
+                                setTiltStrength(profile?.settings?.tilt_strength ?? 50);
+                                setDraftDescription(profile?.description ?? "");
+                            }}>Edit profile</button>
                         </div>
-                    </div>
-                )}
-            </div>
-            <div className="flex justify-center gap-6">
-                {(profile?.links && Array.isArray(profile.links) ? profile.links : (editing && draftLinks.length ? draftLinks : [])).map((l: any, i: number) => {
-                    const url = l.url || l;
-                    const platform = (l.platform || '').toLowerCase();
-                    const commonProps = { key: `${platform}-${i}`, href: url, target: '_blank' };
-                    if (platform.includes('youtube')) return <a {...commonProps}><FaYoutube className="text-2xl text-white/70" /></a>;
-                    if (platform.includes('twitch')) return <a {...commonProps}><FaTwitch className="text-2xl text-white/70" /></a>;
-                    if (platform.includes('tiktok')) return <a {...commonProps}><FaTiktok className="text-2xl text-white/70" /></a>;
-                    if (platform.includes('discord')) return <a {...commonProps}><FaDiscord className="text-2xl text-white/70" /></a>;
-                    if (platform.includes('steam')) return <a {...commonProps}><FaSteam className="text-2xl text-white/70" /></a>;
-                    if (platform.includes('github')) return <a {...commonProps}><FaGithub className="text-2xl text-white/70" /></a>;
-                    if (platform.includes('instagram')) return <a {...commonProps}><FaInstagram className="text-2xl text-white/70" /></a>;
-                    if (platform.includes('twitter')) return <a {...commonProps}><FaXTwitter className="text-2xl text-white/70" /></a>;
-                    return <a {...commonProps}><FaSteam className="text-2xl text-white/70" /></a>;
-                })}
-            </div>
-            <div className="flex justify-center">
-                <MusicPlayer url={profile?.music_url ?? DEFAULT_MUSIC} />
-            </div>
-            <div className="flex items-center justify-center gap-2">
-                <a href={`https://github.com/${username}`} target="_blank" className="flex w-full items-center gap-4 bg-white/5 hover:bg-white/10 p-4 rounded-xl border border-white/5 transition-all">
-                    <FaSteam className="text-4xl text-white/70" />
-                    <div className="flex flex-col">
-                        <span className="font-medium text-gray-200">Steam Profile.</span>
-                        <span className="font-medium text-gray-500">https://steamcommuni...</span>
-                    </div>
-                </a>
-                <a href="#" className="flex w-full items-center gap-4 bg-white/5 hover:bg-white/10 p-4 rounded-xl border border-white/5 transition-all">
-                    <FaDiscord className="text-4xl text-white/70" />
-                    <div className="flex flex-col">
-                        <span className="font-medium text-gray-200">Discord.</span>
-                        <span className="font-medium text-gray-500">.gg/broken</span>
-                    </div>
-                </a>
-            </div>
-        </div>
+                    )}
+                </div>
+                <SocialIcons links={editing ? draftLinks : (profile?.links && Array.isArray(profile.links) ? profile.links : [])} className="flex justify-center gap-6" iconClassName="text-2xl text-white/70" />
+                <div className="flex justify-center">
+                    {((editing ? draftMusicEnabled : (profile?.settings?.music_enabled ?? true))) && (
+                        <MusicPlayer
+                            url={editing ? (draftMusic || DEFAULT_MUSIC) : (profile?.music_url ?? DEFAULT_MUSIC)}
+                            cardColor={editing ? draftMusicCardColor : (profile?.settings?.music_card_color ?? undefined)}
+                            showCard={editing ? draftShowMusicCard : (profile?.settings?.show_music_card ?? true)}
+                            glass={editing ? draftMusicCardGlass : !!profile?.settings?.music_card_glass}
+                            opacity={editing ? draftMusicCardOpacity : profile?.settings?.music_card_opacity ?? 1}
+                        />
+                    )}
+                </div>
+                <div className="w-full">
+                    {(() => {
+                        const linksForCards = (editing ? draftLinks : normalizeLinks(profile?.links)) || [];
+                        const cardItems = editing ? draftCardItems : (profile?.settings?.card_links ?? []);
+                        const cardItemsAvailable = Array.isArray(cardItems) && cardItems.length > 0;
+                        if (!cardItemsAvailable) return null;
+                        const MAX_CARDS = 4;
+                        const itemsToRender = cardItems!.slice(0, MAX_CARDS);
+
+                        const colsClass = itemsToRender.length === 1 ? 'grid-cols-1' : 'grid-cols-2';
+
+                        return (
+                            <div className={`grid ${colsClass} gap-2 w-full`}>
+                                {itemsToRender.map((it: CardItem, i: number) => {
+                                    const url = it.url || '#';
+                                    const Icon = getIconForPlatform(it.icon || it.url || '');
+                                    const title = it.title || (it.icon ? it.icon.charAt(0).toUpperCase() + it.icon.slice(1) : 'Link');
+                                    const subtitle = it.subtitle || displayUrl(url);
+
+                                    const spanClass = itemsToRender.length === 3 && i === 2 ? 'col-span-2' : '';
+
+                                    return (
+                                        <a key={i} href={url} target="_blank" rel="noopener noreferrer" className={`${spanClass} flex items-center gap-4 bg-white/5 hover:bg-white/10 p-4 rounded-xl border border-white/5 transition-all`}>
+                                            <Icon className="text-4xl text-white/70 shrink-0" />
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-medium text-gray-200 truncate block">{title}</span>
+                                                <span className="font-medium text-gray-500 truncate block">{subtitle}</span>
+                                            </div>
+                                        </a>
+                                    );
+                                })}
+                            </div>
+                        );
+                    })()}
+                </div>
+            </TiltWrapper>
+
+            {editing && (
+                <>
+                    <div className={`fixed inset-0 z-40 bg-transparent transition-opacity ${closingPanels ? 'opacity-0' : 'opacity-100'}`} onClick={() => {
+                        setClosingPanels(true);
+                        setDraftAvatarUrl(profile?.avatar_url ?? null);
+                        setTimeout(() => { setClosingPanels(false); setEditing(false); }, 320);
+                    }} />
+                    <ProfilePanel
+                        username={username}
+                        profile={profile}
+                        draftAvatarUrl={draftAvatarUrl}
+                        avatarUploading={avatarUploading}
+                        onAvatarFileChange={handleAvatarFileChange}
+                        draftName={draftName}
+                        setDraftName={setDraftName}
+                        draftDescription={draftDescription}
+                        setDraftDescription={setDraftDescription}
+                        draftCardColor={draftCardColor}
+                        setDraftCardColor={setDraftCardColor}
+                        draftMusic={draftMusic}
+                        setDraftMusic={setDraftMusic}
+                        musicSectionOpen={musicSectionOpen}
+                        setMusicSectionOpen={setMusicSectionOpen}
+                        draftMusicEnabled={draftMusicEnabled}
+                        setDraftMusicEnabled={setDraftMusicEnabled}
+                        draftShowMusicCard={draftShowMusicCard}
+                        setDraftShowMusicCard={setDraftShowMusicCard}
+                        draftMusicCardColor={draftMusicCardColor}
+                        setDraftMusicCardColor={setDraftMusicCardColor}
+                        draftPageColor={draftPageColor}
+                        setDraftPageColor={setDraftPageColor}
+                        draftPageImage={draftPageImage}
+                        setDraftPageImage={setDraftPageImage}
+                        draftCardOpacity={draftCardOpacity}
+                        setDraftCardOpacity={setDraftCardOpacity}
+                        draftCardGlass={draftCardGlass}
+                        setDraftCardGlass={setDraftCardGlass}
+                        draftMusicCardGlass={draftMusicCardGlass}
+                        setDraftMusicCardGlass={setDraftMusicCardGlass}
+                        draftMusicCardOpacity={draftMusicCardOpacity}
+                        setDraftMusicCardOpacity={setDraftMusicCardOpacity}
+                        draftParticlesEnabled={draftParticlesEnabled}
+                        setDraftParticlesEnabled={setDraftParticlesEnabled}
+                        draftParticlesColor={draftParticlesColor}
+                        setDraftParticlesColor={setDraftParticlesColor}
+                        draftParticlesCount={draftParticlesCount}
+                        setDraftParticlesCount={setDraftParticlesCount}
+                        draftParticlesSize={draftParticlesSize}
+                        setDraftParticlesSize={setDraftParticlesSize}
+                        draftParticlesLife={draftParticlesLife}
+                        particlesSectionOpen={particlesSectionOpen}
+                        setParticlesSectionOpen={setParticlesSectionOpen}
+                        setDraftParticlesLife={setDraftParticlesLife}
+                        onBgFileChange={handleBgFileChange}
+                    />
+
+                    <LinksPanel draftLinks={draftLinks} updateLink={updateLink} addLink={addLink} removeLink={removeLink} onSave={handleSave} onCancel={handleCancelEdit} draftCardItems={draftCardItems} setDraftCardItems={setDraftCardItems} />
+                </>
+            )}
+
+            <style jsx>{`
+                .panel-in-left { animation: slideInLeft 320ms ease-out forwards; }
+                .panel-in-right { animation: slideInRight 320ms ease-out forwards; }
+                .panel-out-left { animation: slideOutLeft 320ms ease-in forwards; }
+                .panel-out-right { animation: slideOutRight 320ms ease-in forwards; }
+                @keyframes slideInLeft { from { transform: translateX(-100%); opacity: 0 } to { transform: translateX(0); opacity: 1 } }
+                @keyframes slideOutLeft { from { transform: translateX(0); opacity: 1 } to { transform: translateX(-100%); opacity: 0 } }
+                @keyframes slideInRight { from { transform: translateX(100%); opacity: 0 } to { transform: translateX(0); opacity: 1 } }
+                @keyframes slideOutRight { from { transform: translateX(0); opacity: 1 } to { transform: translateX(100%); opacity: 0 } }
+            `}</style>
+        </>
     );
 }

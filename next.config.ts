@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
         hostname: "avatars.githubusercontent.com",
         pathname: "/**",
       },
+      // allow Supabase storage hosts (any project subdomain)
+      { protocol: "https", hostname: "**.supabase.co", pathname: "/**" },
     ],
   },
 };

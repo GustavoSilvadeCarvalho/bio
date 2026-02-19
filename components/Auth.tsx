@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient, User, Session } from "@supabase/supabase-js";
+import { FaGithub, FaDiscord } from "react-icons/fa";
 
 export default function Auth() {
     const [sb, setSb] = useState<SupabaseClient | null>(null);
@@ -10,7 +13,9 @@ export default function Auth() {
     const [mode, setMode] = useState<"signin" | "signup">("signin");
     const [message, setMessage] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
-    const [user, setUser] = useState<any | null>(null);
+    const [user, setUser] = useState<User | null>(null);
+    const router = useRouter();
+    const [username, setUsername] = useState<string | null>(null);
 
     useEffect(() => {
         if (typeof window === "undefined") return;
@@ -24,19 +29,18 @@ export default function Auth() {
         const client = createClient(NEXT_URL, NEXT_KEY);
         setSb(client);
 
-        // load initial session
-        client.auth.getSession().then((res: any) => {
-            const session = res?.data?.session;
+        client.auth.getSession().then((res) => {
+            const session = res?.data?.session as Session | null;
             if (session?.user) setUser(session.user);
         }).catch(() => { });
 
-        // subscribe to changes
         const { data: sub } = client.auth.onAuthStateChange((_event, session) => {
+            void _event;
             setUser(session?.user ?? null);
         });
 
         return () => {
-            try { sub?.subscription?.unsubscribe(); } catch (e) { }
+            try { sub?.subscription?.unsubscribe(); } catch (e) { void e; }
         };
     }, []);
 
@@ -45,20 +49,40 @@ export default function Auth() {
         setLoading(true);
         setMessage(null);
         try {
-            await sb.auth.signInWithOAuth({ provider: "github" });
-        } catch (err: any) {
-            setMessage(String(err?.message ?? err));
+            await sb.auth.signInWithOAuth({ provider: "github", options: { redirectTo: window.location.origin + "/login" } });
+        } catch (err: unknown) {
+            if (err instanceof Error) setMessage(err.message);
+            else setMessage(String(err));
         } finally { setLoading(false); }
     }
+
+    useEffect(() => {
+        setUsername(null);
+        if (!sb || !user) return;
+        (async () => {
+            try {
+                const { data, error } = await sb
+                    .from("profiles")
+                    .select("username")
+                    .eq("owner_id", user.id)
+                    .maybeSingle();
+
+                if (!error && data && typeof (data as Record<string, unknown>).username === 'string') {
+                    setUsername((data as Record<string, unknown>).username as string);
+                }
+            } catch (_e: unknown) { void _e; }
+        })();
+    }, [sb, user]);
 
     async function signInWithDiscord() {
         if (!sb) return setMessage("Supabase cliente não inicializado");
         setLoading(true);
         setMessage(null);
         try {
-            await sb.auth.signInWithOAuth({ provider: "discord" });
-        } catch (err: any) {
-            setMessage(String(err?.message ?? err));
+            await sb.auth.signInWithOAuth({ provider: "discord", options: { redirectTo: window.location.origin + "/login" } });
+        } catch (err: unknown) {
+            if (err instanceof Error) setMessage(err.message);
+            else setMessage(String(err));
         } finally { setLoading(false); }
     }
 
@@ -71,8 +95,9 @@ export default function Auth() {
             const { error } = await sb.auth.signUp({ email, password });
             if (error) setMessage(error.message);
             else setMessage("Conta criada. Verifique seu e-mail se for requerido.");
-        } catch (err: any) {
-            setMessage(String(err?.message ?? err));
+        } catch (err: unknown) {
+            if (err instanceof Error) setMessage(err.message);
+            else setMessage(String(err));
         } finally { setLoading(false); }
     }
 
@@ -85,22 +110,9 @@ export default function Auth() {
             const { error } = await sb.auth.signInWithPassword({ email, password });
             if (error) setMessage(error.message);
             else setMessage("Logado");
-        } catch (err: any) {
-            setMessage(String(err?.message ?? err));
-        } finally { setLoading(false); }
-    }
-
-    async function sendMagicLink() {
-        if (!sb) return setMessage("Supabase cliente não inicializado");
-        if (!email) return setMessage("Informe um e-mail");
-        setLoading(true);
-        setMessage(null);
-        try {
-            const { error } = await sb.auth.signInWithOtp({ email });
-            if (error) setMessage(error.message);
-            else setMessage("Link enviado — verifique seu email");
-        } catch (err: any) {
-            setMessage(String(err?.message ?? err));
+        } catch (err: unknown) {
+            if (err instanceof Error) setMessage(err.message);
+            else setMessage(String(err));
         } finally { setLoading(false); }
     }
 
@@ -111,74 +123,105 @@ export default function Auth() {
     }
 
     return (
-        <div className="p-4 bg-white/3 rounded-lg max-w-md mx-auto">
-            <h3 className="text-lg font-medium mb-3">Autenticação</h3>
+        <div className="max-w-md mx-auto">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(#ffffff06_1.5px,transparent_1.5px)] bg-size-[32px_32px] bg-[#09090b]" />
 
-            {/* mensagens de estado */}
-            {message && <div className="mb-3"><p className="text-sm text-yellow-300">{message}</p></div>}
+            <div className="p-6 bg-linear-to-br from-white/4 via-white/6 to-white/4 rounded-2xl border border-white/6 shadow-xl backdrop-blur-md">
+                <div className="flex items-start justify-between mb-4">
+                    <div>
+                        <h3 className="text-xl font-semibold">Autenticação</h3>
+                        <p className="text-sm text-gray-300">Entre na sua conta ou crie uma nova</p>
+                    </div>
 
-            {/* Usuário já autenticado */}
-            {user ? (
-                <div>
-                    <p className="text-sm">Conectado como <strong>{user.email ?? user.id}</strong></p>
-                    <div className="mt-3">
-                        <button className="px-3 py-2 bg-red-600 rounded text-sm" onClick={signOut}>Sair</button>
+                    <div className="relative inline-flex items-center bg-white/3 rounded-full p-1">
+                        <div
+                            className="absolute top-1 bottom-1 rounded-full bg-white transition-all duration-300 ease-in-out"
+                            style={{ left: mode === "signup" ? "50%" : "0.25rem", width: "calc(50% - 0.25rem)" }}
+                        />
+
+                        <button
+                            onClick={() => setMode("signin")}
+                            className={`relative z-10 px-3 py-1 rounded-full text-sm ${mode === "signin" ? "text-black" : "text-gray-300"}`}
+                        >
+                            Entrar
+                        </button>
+                        <button
+                            onClick={() => setMode("signup")}
+                            className={`relative z-10 px-3 py-1 rounded-full text-sm ${mode === "signup" ? "text-black" : "text-gray-300"}`}
+                        >
+                            Criar
+                        </button>
                     </div>
                 </div>
-            ) : (
-                <div className="space-y-4">
-                    {/* OAuth */}
+
+                {message && <div className="mb-3"><p className="text-sm text-yellow-300">{message}</p></div>}
+
+                {user ? (
                     <div>
-                        <p className="text-sm text-gray-300 mb-2">Entrar com conta externa</p>
-                        <div className="flex gap-2">
-                            <button className="flex-1 px-3 py-2 bg-gray-800 text-white rounded" onClick={signInWithGitHub} disabled={loading}>GitHub</button>
-                            <button className="flex-1 px-3 py-2 bg-gray-800 text-white rounded" onClick={signInWithDiscord} disabled={loading}>Discord</button>
+                        <p className="text-sm">Está logado no email <strong>{user.email ?? user.id}</strong></p>
+                        <div className="mt-3 flex gap-3">
+                            <button
+                                className="px-4 py-2 bg-blue-600 rounded text-sm"
+                                onClick={() => username ? router.push(`/${username}`) : null}
+                                disabled={!username}
+                            >
+                                Ir para sua página
+                            </button>
+                            <button
+                                className="px-4 py-2 bg-red-600 rounded text-sm"
+                                onClick={async () => { await signOut(); router.push('/'); }}
+                            >
+                                Logoff
+                            </button>
                         </div>
                     </div>
-
-                    {/* Email + senha */}
-                    <div>
-                        <p className="text-sm text-gray-300 mb-2">Entrar com email e senha</p>
-                        <div className="flex gap-2">
+                ) : (
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-sm text-gray-300 mb-2 block">Email</label>
                             <input
                                 aria-label="email"
                                 placeholder="email@example.com"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="flex-1 p-2 rounded bg-white/5 border border-white/5"
+                                className="w-full p-3 rounded-lg bg-white/5 border border-white/6 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
+                        </div>
+
+                        <div>
+                            <label className="text-sm text-gray-300 mb-2 block">Senha</label>
                             <input
                                 aria-label="senha"
                                 placeholder="senha"
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-40 p-2 rounded bg-white/5 border border-white/5"
+                                className="w-full p-3 rounded-lg bg-white/5 border border-white/6"
                             />
                         </div>
-                        <div className="mt-2 flex gap-2">
-                            <button className="px-3 py-2 bg-blue-600 text-white rounded" onClick={signInWithPassword} disabled={loading}>Entrar</button>
-                            <button className="px-3 py-2 bg-green-600 text-white rounded" onClick={signUpWithPassword} disabled={loading}>Criar conta</button>
-                        </div>
-                    </div>
 
-                    {/* Magic link (optional) */}
-                    <div>
-                        <p className="text-sm text-gray-300 mb-2">Ou faça login sem senha (magic link)</p>
-                        <div className="flex gap-2">
-                            <input
-                                aria-label="email-magic"
-                                placeholder="email@example.com"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="flex-1 p-2 rounded bg-white/5 border border-white/5"
-                            />
-                            <button className="px-3 py-2 bg-indigo-600 text-white rounded" onClick={sendMagicLink} disabled={loading}>Enviar link</button>
+                        <div className="flex items-center gap-2">
+                            {mode === "signin" ? (
+                                <button className="flex-1 px-4 py-2 bg-[#797979] text-white rounded-lg" onClick={signInWithPassword} disabled={loading}>Entrar</button>
+                            ) : (
+                                <button className="flex-1 px-4 py-2 bg-[#494949] text-white rounded-lg" onClick={signUpWithPassword} disabled={loading}>Criar conta</button>
+                            )}
                         </div>
-                        <p className="text-xs text-gray-400 mt-2">Se o envio de e-mails falhar, configure SMTP em Supabase Dashboard.</p>
+                        <div className="flex items-center gap-3 my-2">
+                            <div className="flex-1 h-px bg-white/6" />
+                            <p className="text-sm text-gray-400">ou</p>
+                            <div className="flex-1 h-px bg-white/6" />
+                        </div>
+                        <div>
+                            <p className="text-sm text-gray-300 mb-3">Entrar com</p>
+                            <div className="grid grid-cols-1 gap-2">
+                                <button className="flex items-center justify-center gap-3 px-3 py-3 bg-black text-white rounded-lg border border-white/6 hover:opacity-95" onClick={signInWithGitHub} disabled={loading}><FaGithub className="h-6 w-6" />GitHub</button>
+                                <button className="flex items-center justify-center gap-3 px-3 py-3 bg-indigo-600 text-white rounded-lg hover:opacity-95" onClick={signInWithDiscord} disabled={loading}><FaDiscord className="h-6 w-6" />Discord</button>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     );
 }
