@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Image from 'next/image';
-import { FaDiscord, FaYoutube, FaTwitch, FaTiktok, FaSteam, FaEye, FaInstagram, FaGithub } from "react-icons/fa";
+import { FaDiscord, FaYoutube, FaTwitch, FaTiktok, FaSteam, FaEye, FaInstagram, FaGithub, FaMusic } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 import { IoMdAdd } from "react-icons/io";
 import { MusicPlayer } from "./MusicPlayer";
@@ -63,10 +63,7 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
     const [draftParticlesSize, setDraftParticlesSize] = useState<number>(4);
     const [draftParticlesLife, setDraftParticlesLife] = useState<number>(60);
     const [draftCardGlass, setDraftCardGlass] = useState<boolean>(false);
-    const [draftCardItems, setDraftCardItems] = useState<Array<{ icon?: string; title?: string; subtitle?: string; url?: string }>>([
-        { icon: 'github', title: 'GitHub', subtitle: `github.com/${username}`, url: `https://github.com/${username}` },
-        { icon: 'discord', title: 'Discord', subtitle: 'Invite', url: '#' },
-    ]);
+    const [draftCardItems, setDraftCardItems] = useState<Array<{ icon?: string; title?: string; subtitle?: string; url?: string }>>([]);
     const [draftMusicEnabled, setDraftMusicEnabled] = useState<boolean>(true);
     const [draftShowMusicCard, setDraftShowMusicCard] = useState<boolean>(true);
     const [tiltStrength, setTiltStrength] = useState<number>(50);
@@ -131,7 +128,8 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
         }
     }, [profile]);
 
-    const DEFAULT_MUSIC = "https://youtu.be/5RPBpMKQCLA?si=YikhXa74wXfz9yVz";
+    const DEFAULT_MUSIC = null;
+    const musicUrl = editing ? (draftMusic || null) : (profile?.music_url ?? profile?.settings?.music_url ?? null);
     const [views] = useState<number>(() => 132);
 
     useEffect(() => {
@@ -364,7 +362,8 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
 
 
 
-    const avatarSrc = draftAvatarUrl ?? profile?.avatar_url ?? `https://github.com/${username}.png`;
+    const avatarSrc = draftAvatarUrl ?? profile?.avatar_url ?? null;
+    const initials = ((profile?.full_name ?? username ?? '').split(' ').map(s => s[0]).slice(0, 2).join('') || (username ? username.slice(0, 2) : '')).toUpperCase();
 
     function hexToRgba(hex: string, alpha = 1) {
         try {
@@ -436,11 +435,15 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
                 </div>
                 <div className="flex flex-col items-center text-center">
                     <div className="relative group">
-                        <div className="w-32 h-32 rounded-full border-4 overflow-hidden shadow-xl transition-all duration-500 border-white/10">
-                            {typeof avatarSrc === 'string' && (avatarSrc.toLowerCase().endsWith('.gif') || avatarSrc.toLowerCase().includes('.gif')) ? (
-                                <img src={avatarSrc} alt={`${username} avatar`} width={128} height={128} className="w-full h-full object-cover transition-transform duration-[10s]" />
+                        <div className="w-32 h-32 rounded-full border-4 overflow-hidden shadow-xl transition-all duration-500 border-white/10 bg-gray-800 flex items-center justify-center text-white/90">
+                            {avatarSrc ? (
+                                (avatarSrc.toLowerCase().endsWith('.gif') || avatarSrc.toLowerCase().includes('.gif')) ? (
+                                    <img src={avatarSrc} alt={`${username} avatar`} width={128} height={128} className="w-full h-full object-cover transition-transform duration-[10s]" />
+                                ) : (
+                                    <Image src={avatarSrc} alt={`${username} avatar`} width={128} height={128} className="w-full h-full object-cover transition-transform duration-[10s]" />
+                                )
                             ) : (
-                                <Image src={avatarSrc as string} alt={`${username} avatar`} width={128} height={128} className="w-full h-full object-cover transition-transform duration-[10s]" />
+                                <div className="w-full h-full flex items-center justify-center bg-transparent text-2xl font-bold">{initials}</div>
                             )}
                         </div>
                     </div>
@@ -478,6 +481,7 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
                                 setDraftShowMusicCard((profile?.settings && typeof profile.settings.show_music_card === 'boolean') ? !!profile.settings.show_music_card : true);
                                 setTiltStrength(profile?.settings?.tilt_strength ?? 50);
                                 setDraftDescription(profile?.description ?? "");
+                                setDraftCardItems((profile?.settings?.card_links && Array.isArray(profile!.settings!.card_links)) ? profile!.settings!.card_links : []);
                             }}>Edit profile</button>
                         </div>
                     )}
@@ -485,13 +489,24 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
                 <SocialIcons links={editing ? draftLinks : (profile?.links && Array.isArray(profile.links) ? profile.links : [])} className="flex justify-center gap-6" iconClassName="text-2xl text-white/70" />
                 <div className="flex justify-center">
                     {((editing ? draftMusicEnabled : (profile?.settings?.music_enabled ?? true))) && (
-                        <MusicPlayer
-                            url={editing ? (draftMusic || DEFAULT_MUSIC) : (profile?.music_url ?? DEFAULT_MUSIC)}
-                            cardColor={editing ? draftMusicCardColor : (profile?.settings?.music_card_color ?? undefined)}
-                            showCard={editing ? draftShowMusicCard : (profile?.settings?.show_music_card ?? true)}
-                            glass={editing ? draftMusicCardGlass : !!profile?.settings?.music_card_glass}
-                            opacity={editing ? draftMusicCardOpacity : profile?.settings?.music_card_opacity ?? 1}
-                        />
+                        musicUrl ? (
+                            <MusicPlayer
+                                url={musicUrl}
+                                cardColor={editing ? draftMusicCardColor : (profile?.settings?.music_card_color ?? undefined)}
+                                showCard={editing ? draftShowMusicCard : (profile?.settings?.show_music_card ?? true)}
+                                glass={editing ? draftMusicCardGlass : !!profile?.settings?.music_card_glass}
+                                opacity={editing ? draftMusicCardOpacity : profile?.settings?.music_card_opacity ?? 1}
+                            />
+                        ) : (
+                            <div className="w-full max-w-2xl mx-auto">
+                                <div className="flex items-center gap-3 bg-white/5 p-3 rounded-xl">
+                                    <div className="w-10 h-10 rounded-md bg-white/5 flex items-center justify-center text-white/80">
+                                        <FaMusic />
+                                    </div>
+                                    <div className="text-sm text-gray-400 font-medium">Sem URL de música</div>
+                                </div>
+                            </div>
+                        )
                     )}
                 </div>
                 <div className="w-full">
