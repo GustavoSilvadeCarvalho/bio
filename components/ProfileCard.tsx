@@ -73,30 +73,7 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
     const [draftAvatarUrl, setDraftAvatarUrl] = useState<string | null>(null);
     const [avatarUploading, setAvatarUploading] = useState(false);
 
-    const [signEmail, setSignEmail] = useState("");
-    const [signMessage, setSignMessage] = useState<string | null>(null);
-    const [signLoading, setSignLoading] = useState(false);
 
-    async function handleSendMagicLink() {
-        const NEXT_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const NEXT_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-        if (!NEXT_URL || !NEXT_KEY) {
-            setSignMessage("Supabase não está configurado no cliente (NEXT_PUBLIC_SUPABASE_*)");
-            return;
-        }
-        setSignLoading(true);
-        setSignMessage(null);
-        try {
-            const sb = createClient(NEXT_URL, NEXT_KEY);
-            const { error } = await sb.auth.signInWithOtp({ email: signEmail });
-            if (error) setSignMessage(error.message);
-            else setSignMessage("Link enviado — verifique seu e-mail (pode demorar alguns minutos)");
-        } catch (err: unknown) {
-            setSignMessage(String(err));
-        } finally {
-            setSignLoading(false);
-        }
-    }
 
     useEffect(() => {
         if (profile) {
@@ -452,16 +429,7 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
                         <p className="mt-2 text-sm text-gray-400">{editing ? draftDescription : profile?.description}</p>
                     ) : null}
                     {error && <p className="text-sm text-red-400 mt-2">{error}</p>}
-                    {!currentUser && (
-                        <div className="mt-3 w-full max-w-md">
-                            <p className="text-sm text-gray-400">Faça login para editar sua página.</p>
-                            <div className="flex gap-2 mt-2">
-                                <input aria-label="email" placeholder="seu@email.com" className="flex-1 p-2 rounded bg-white/3 border border-white/5 text-white" value={signEmail} onChange={(e) => setSignEmail(e.target.value)} />
-                                <button className="px-3 py-2 bg-blue-600 rounded text-sm" onClick={handleSendMagicLink} disabled={!signEmail || signLoading}>{signLoading ? 'Enviando...' : 'Enviar link'}</button>
-                            </div>
-                            {signMessage && <p className="text-sm mt-2 text-yellow-300">{signMessage}</p>}
-                        </div>
-                    )}
+
                     {canEdit && !editing && (
                         <div className="mt-3">
                             <button className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-md text-sm" onClick={() => {

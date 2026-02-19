@@ -25,28 +25,47 @@ function extractVideoId(url: string): string | null {
 }
 
 function loadYTApi(): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         if (window.YT?.Player) {
             resolve()
             return
         }
-        if (document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+        const existing = document.querySelector('script[src*="youtube.com/iframe_api"]') as HTMLScriptElement | null
+        if (existing) {
+            // if already present, wait until YT is ready but timeout if blocked
+            const start = Date.now()
             const id = setInterval(() => {
                 if (window.YT?.Player) { clearInterval(id); resolve() }
+                if (Date.now() - start > 3000) { clearInterval(id); reject(new Error('YT load timeout')) }
             }, 100)
             return
         }
-        window.onYouTubeIframeAPIReady = () => resolve()
+
+        let timedOut = false
+        const timeout = setTimeout(() => { timedOut = true; reject(new Error('YT load timeout')) }, 3000)
+
+        window.onYouTubeIframeAPIReady = () => {
+            if (timedOut) return
+            clearTimeout(timeout)
+            resolve()
+        }
+
         const s = document.createElement("script")
         s.src = "https://www.youtube.com/iframe_api"
+        s.async = true
+        s.onerror = () => {
+            clearTimeout(timeout)
+            reject(new Error('YT script error'))
+        }
         document.head.appendChild(s)
     })
 }
 
-function useYTPlayer(url: string) {
+function useYTPlayer(url: string, attemptKey = 0) {
     const [playing, setPlaying] = useState(false)
     const [loading, setLoading] = useState(true)
     const [ready, setReady] = useState(false)
+    const [ytBlocked, setYtBlocked] = useState(false)
     const [time, setTime] = useState(0)
     const [dur, setDur] = useState(0)
     const [title, setTitle] = useState("")
@@ -70,7 +89,6 @@ function useYTPlayer(url: string) {
         if (!videoId) return
 
         let cancelled = false
-
             ; (async () => {
                 setLoading(true)
                 setReady(false)
@@ -78,8 +96,15 @@ function useYTPlayer(url: string) {
                 setDur(0)
                 setTitle("")
                 tick(false)
-
-                await loadYTApi()
+                setYtBlocked(false)
+                try {
+                    await loadYTApi()
+                } catch {
+                    if (cancelled) return
+                    setLoading(false)
+                    setYtBlocked(true)
+                    return
+                }
                 if (cancelled) return
 
                 if (player.current) { player.current.destroy(); player.current = null }
@@ -137,7 +162,7 @@ function useYTPlayer(url: string) {
             player.current?.destroy()
             player.current = null
         }
-    }, [url, tick])
+    }, [url, tick, attemptKey])
 
     const toggle = useCallback(() => {
         if (!player.current) return
@@ -153,7 +178,7 @@ function useYTPlayer(url: string) {
         setTime(t)
     }, [])
 
-    return { playing, loading, ready, time, dur, title, toggle, seek }
+    return { playing, loading, ready, time, dur, title, toggle, seek, ytBlocked }
 }
 
 function fmt(s: number) {
@@ -171,47 +196,64 @@ interface MusicPlayerProps {
 }
 
 export function MusicPlayer({ url, cardColor, showCard = true, glass = false, opacity = 1 }: MusicPlayerProps) {
-    const { playing, loading, ready, time, dur, title, toggle, seek } =
-        useYTPlayer(url)
+    const [retryKey, setRetryKey] = useState(0)
+    const { playing, loading, ready, time, dur, title, toggle, seek, ytBlocked } = useYTPlayer(url, retryKey)
 
     const [showPlayPrompt, setShowPlayPrompt] = useState(false)
 
     useEffect(() => {
         // try to trigger play on ready (may be blocked by browser); if blocked, show play prompt
         if (!ready) return
-        if (playing) { setShowPlayPrompt(false); return }
+        if (playing) { setTimeout(() => setShowPlayPrompt(false), 0); return }
         // attempt to play once (user gesture may be required)
         try { toggle() } catch { }
         const id = setTimeout(() => {
             if (!playing) setShowPlayPrompt(true)
         }, 700)
         return () => clearTimeout(id)
-    }, [ready])
+    }, [ready, playing, toggle])
+
+    useEffect(() => {
+        // Se já está tocando ou se o player ainda nem está pronto, não faz nada
+        if (playing || !ready) return;
+
+        function onUserInteract() {
+            try {
+                toggle(); // Tenta dar o play
+                setShowPlayPrompt(false);
+            } catch { }
+            removeListeners();
+        }
+
+        function removeListeners() {
+            window.removeEventListener('pointerdown', onUserInteract);
+            window.removeEventListener('keydown', onUserInteract);
+        }
+
+        window.addEventListener('pointerdown', onUserInteract, { once: true });
+        window.addEventListener('keydown', onUserInteract, { once: true });
+
+        return () => removeListeners();
+    }, [playing, ready, toggle]); // Adicionamos o 'ready' aqui nas dependências
 
     const barRef = useRef<HTMLDivElement>(null)
     const dragging = useRef(false)
 
     const pct = dur > 0 ? (time / dur) * 100 : 0
 
-    const seekFromEvent = useCallback(
-        (e: React.PointerEvent | PointerEvent) => {
-            const rect = barRef.current?.getBoundingClientRect()
-            if (!rect || dur === 0) return
-            const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width))
-            seek((x / rect.width) * dur)
-        },
-        [dur, seek]
-    )
+    const seekFromEvent = useCallback((e: React.PointerEvent | PointerEvent) => {
+        const rect = barRef.current?.getBoundingClientRect()
+        if (!rect || dur === 0) return
+        const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width))
+        seek((x / rect.width) * dur)
+    }, [dur, seek])
 
-    const onPointerDown = useCallback(
-        (e: React.PointerEvent<HTMLDivElement>) => {
-            if (!ready) return
-            dragging.current = true
-                ; (e.target as HTMLDivElement).setPointerCapture(e.pointerId)
-            seekFromEvent(e)
-        },
-        [ready, seekFromEvent]
-    )
+    const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+        if (!ready) return
+        dragging.current = true
+            ; (e.target as HTMLDivElement).setPointerCapture(e.pointerId)
+        seekFromEvent(e)
+    }, [ready, seekFromEvent])
 
     const onPointerMove = useCallback(
         (e: React.PointerEvent<HTMLDivElement>) => {
@@ -265,7 +307,12 @@ export function MusicPlayer({ url, cardColor, showCard = true, glass = false, op
                 >
                     <Music className="h-5 w-5 text-white" strokeWidth={2.2} />
                 </div>
-                {showPlayPrompt && (
+                {ytBlocked ? (
+                    <div className="mt-3 flex items-center gap-2">
+                        <span className="text-sm text-[#f3dede]">Falha ao carregar o YouTube (bloqueado pelo navegador/adblock).</span>
+                        <button onClick={() => setRetryKey(k => k + 1)} className="px-3 py-1 rounded-md bg-white/6 hover:bg-white/10 text-sm">Tentar novamente</button>
+                    </div>
+                ) : showPlayPrompt && (
                     <div className="mt-3 flex justify-center">
                         <button onClick={() => { setShowPlayPrompt(false); try { toggle() } catch { } }} className="px-4 py-2 rounded-md bg-white/6 hover:bg-white/10 text-sm">Tocar música</button>
                     </div>
