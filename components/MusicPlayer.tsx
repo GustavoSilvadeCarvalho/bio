@@ -71,8 +71,8 @@ function useYTPlayer(url: string, attemptKey = 0) {
     const [title, setTitle] = useState("")
 
     const player = useRef<YT.Player | null>(null)
-    const ticker = useRef<ReturnType<typeof setInterval> | null>(null)
     const box = useRef<HTMLDivElement | null>(null)
+    const ticker = useRef<ReturnType<typeof setInterval> | null>(null)
 
     const tick = useCallback((on: boolean) => {
         if (ticker.current) clearInterval(ticker.current)
@@ -106,7 +106,6 @@ function useYTPlayer(url: string, attemptKey = 0) {
                     return
                 }
                 if (cancelled) return
-
                 if (player.current) { player.current.destroy(); player.current = null }
 
                 if (!box.current) {
@@ -199,9 +198,14 @@ interface MusicPlayerProps {
     showCard?: boolean
     glass?: boolean
     opacity?: number
+    textColor?: string
+    iconColor?: string
+    glowEnabled?: boolean
+    glowColor?: string
+    glowSize?: number
 }
 
-export function MusicPlayer({ url, cardColor, showCard = true, glass = false, opacity = 1 }: MusicPlayerProps) {
+export function MusicPlayer({ url, cardColor, showCard = true, glass = false, opacity = 1, textColor, iconColor, glowEnabled, glowColor, glowSize }: MusicPlayerProps) {
     const [retryKey, setRetryKey] = useState(0)
     const { playing, loading, ready, time, dur, title, toggle, seek, ytBlocked } = useYTPlayer(url, retryKey)
 
@@ -210,6 +214,9 @@ export function MusicPlayer({ url, cardColor, showCard = true, glass = false, op
     const autoplayAttempted = useRef(false);
 
     const hasInteracted = useRef(false);
+
+    const appliedTextColor = textColor ?? 'white';
+    const appliedIconColor = iconColor ?? 'white';
 
     useEffect(() => {
         if (!ready) return;
@@ -323,6 +330,11 @@ export function MusicPlayer({ url, cardColor, showCard = true, glass = false, op
         containerStyle.border = '1px solid rgba(255,255,255,0.06)';
     }
 
+    const textStyle = appliedTextColor ? { color: appliedTextColor } : undefined;
+    const iconStyle = appliedIconColor ? { color: appliedIconColor } : undefined;
+    const glowTextStyle = (glowEnabled && glowColor && glowSize) ? { textShadow: `0 0 ${glowSize}px ${glowColor}, 0 0 ${Math.max(1, Math.round(glowSize * 0.6))}px ${glowColor}` } : undefined;
+    const glowIconStyle = (glowEnabled && glowColor && glowSize) ? { filter: `drop-shadow(0 0 ${glowSize}px ${glowColor})` } : undefined;
+
     return (
         <div style={containerStyle} className="flex w-full select-none flex-col gap-4 rounded-xl p-5 transition-all">
             <div className="flex items-center gap-3.5">
@@ -330,7 +342,7 @@ export function MusicPlayer({ url, cardColor, showCard = true, glass = false, op
                     className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/5 ${playing ? "animate-pulse" : ""
                         }`}
                 >
-                    <Music className="h-5 w-5 text-white" strokeWidth={2.2} />
+                    <Music className="h-5 w-5" strokeWidth={2.2} style={{ ...iconStyle, ...glowIconStyle }} />
                 </div>
                 {ytBlocked ? (
                     <div className="mt-3 flex items-center gap-2">
@@ -344,7 +356,7 @@ export function MusicPlayer({ url, cardColor, showCard = true, glass = false, op
                 )}
 
                 <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-semibold leading-tight text-[#e8e8ec]">
+                    <p className="truncate text-[13px] font-semibold leading-tight" style={{ ...textStyle, ...glowTextStyle }}>
                         {title || (ready ? "Sem titulo" : loading ? "Carregando..." : "...")}
                     </p>
                 </div>
@@ -378,8 +390,8 @@ export function MusicPlayer({ url, cardColor, showCard = true, glass = false, op
                     </div>
 
                     <div className="flex justify-between px-0.5">
-                        <span className="text-[10px] tabular-nums text-[#6e6e78]">{fmt(time)}</span>
-                        <span className="text-[10px] tabular-nums text-[#6e6e78]">{fmt(dur)}</span>
+                        <span className="text-[10px] tabular-nums" style={{ ...textStyle, ...glowTextStyle }}>{fmt(time)}</span>
+                        <span className="text-[10px] tabular-nums" style={{ ...textStyle, ...glowTextStyle }}>{fmt(dur)}</span>
                     </div>
                 </div>
 
@@ -391,7 +403,8 @@ export function MusicPlayer({ url, cardColor, showCard = true, glass = false, op
                         }}
                         disabled={!ready}
                         aria-label={playing ? "Pausar" : "Tocar"}
-                        className="flex h-12 w-12 items-center justify-center rounded-full bg-white/5 text-white transition-transform hover:scale-105 active:scale-95 disabled:opacity-30"
+                        className="flex h-12 w-12 items-center justify-center rounded-full bg-white/5 transition-transform hover:scale-105 active:scale-95 disabled:opacity-30"
+                        style={iconStyle}
                     >
                         {loading ? (
                             <Loader2 className="h-5 w-5 animate-spin" />

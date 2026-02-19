@@ -51,6 +51,11 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
     const [draftMusic, setDraftMusic] = useState("");
     const [draftLinks, setDraftLinks] = useState<Link[]>([]);
     const [draftCardColor, setDraftCardColor] = useState<string>("");
+    const [draftTitleColor, setDraftTitleColor] = useState<string>("");
+    const [draftDescriptionColor, setDraftDescriptionColor] = useState<string>("");
+    const [draftMusicTextColor, setDraftMusicTextColor] = useState<string>("");
+    const [draftCardsTextColor, setDraftCardsTextColor] = useState<string>("");
+    const [draftIconColor, setDraftIconColor] = useState<string>("");
     const [draftPageColor, setDraftPageColor] = useState<string>("");
     const [draftPageImage, setDraftPageImage] = useState<string | null>(null);
     const [draftCardOpacity, setDraftCardOpacity] = useState<number>(1);
@@ -66,6 +71,14 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
     const [draftCardItems, setDraftCardItems] = useState<Array<{ icon?: string; title?: string; subtitle?: string; url?: string }>>([]);
     const [draftMusicEnabled, setDraftMusicEnabled] = useState<boolean>(true);
     const [draftShowMusicCard, setDraftShowMusicCard] = useState<boolean>(true);
+    const [draftGlowEnabled, setDraftGlowEnabled] = useState<boolean>(false);
+    const [draftGlowColor, setDraftGlowColor] = useState<string>('#00ffff');
+    const [draftGlowSize, setDraftGlowSize] = useState<number>(8);
+    const [draftGlowTitle, setDraftGlowTitle] = useState<boolean>(false);
+    const [draftGlowDescription, setDraftGlowDescription] = useState<boolean>(false);
+    const [draftGlowMusic, setDraftGlowMusic] = useState<boolean>(false);
+    const [draftGlowCards, setDraftGlowCards] = useState<boolean>(false);
+    const [draftGlowIcons, setDraftGlowIcons] = useState<boolean>(false);
     const [tiltStrength, setTiltStrength] = useState<number>(50);
     const [musicSectionOpen, setMusicSectionOpen] = useState<boolean>(false);
     const [particlesSectionOpen, setParticlesSectionOpen] = useState<boolean>(false);
@@ -85,6 +98,19 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
             setDraftMusicCardColor(profile.settings?.music_card_color ?? "");
             setDraftMusicCardGlass(typeof profile.settings?.music_card_glass === 'boolean' ? !!profile.settings!.music_card_glass : false);
             setDraftMusicCardOpacity(typeof profile.settings?.music_card_opacity === 'number' ? profile.settings!.music_card_opacity! : 1);
+            setDraftTitleColor(typeof profile.settings?.title_color === 'string' ? profile.settings!.title_color! : "");
+            setDraftDescriptionColor(typeof profile.settings?.description_color === 'string' ? profile.settings!.description_color! : "");
+            setDraftMusicTextColor(typeof profile.settings?.music_text_color === 'string' ? profile.settings!.music_text_color! : "");
+            setDraftCardsTextColor(typeof profile.settings?.cards_text_color === 'string' ? profile.settings!.cards_text_color! : "");
+            setDraftIconColor(typeof profile.settings?.icon_color === 'string' ? profile.settings!.icon_color! : "");
+            setDraftGlowEnabled(typeof profile.settings?.glow_enabled === 'boolean' ? !!profile.settings!.glow_enabled : false);
+            setDraftGlowColor(typeof profile.settings?.glow_color === 'string' ? profile.settings!.glow_color! : '#00ffff');
+            setDraftGlowSize(typeof profile.settings?.glow_size === 'number' ? profile.settings!.glow_size! : 8);
+            setDraftGlowTitle(typeof profile.settings?.glow_title === 'boolean' ? !!profile.settings!.glow_title : false);
+            setDraftGlowDescription(typeof profile.settings?.glow_description === 'boolean' ? !!profile.settings!.glow_description : false);
+            setDraftGlowMusic(typeof profile.settings?.glow_music === 'boolean' ? !!profile.settings!.glow_music : false);
+            setDraftGlowCards(typeof profile.settings?.glow_cards === 'boolean' ? !!profile.settings!.glow_cards : false);
+            setDraftGlowIcons(typeof profile.settings?.glow_icons === 'boolean' ? !!profile.settings!.glow_icons : false);
             setDraftParticlesEnabled(typeof profile.settings?.mouse_particles === 'boolean' ? !!profile.settings!.mouse_particles : true);
             setDraftParticlesColor(profile.settings?.mouse_particles_color ?? '#58a6ff');
             setDraftParticlesCount(typeof profile.settings?.mouse_particles_count === 'number' ? profile.settings!.mouse_particles_count! : 3);
@@ -158,7 +184,7 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
                     avatar_url: draftAvatarUrl || null,
                     links: draftLinks && draftLinks.length ? draftLinks : null,
                     background_color: draftCardColor || null,
-                    settings: { ...(profile?.settings || {}), page_background_color: draftPageColor ?? null, page_background_image: draftPageImage ?? null, card_opacity: draftCardOpacity ?? 1, card_glass: draftCardGlass ?? false, music_card_color: draftMusicCardColor ?? null, music_card_glass: draftMusicCardGlass ?? false, music_card_opacity: draftMusicCardOpacity ?? 1, mouse_particles: draftParticlesEnabled ?? true, mouse_particles_color: draftParticlesColor ?? '#58a6ff', mouse_particles_count: draftParticlesCount ?? 3, mouse_particles_size: draftParticlesSize ?? 4, mouse_particles_life: draftParticlesLife ?? 60, music_enabled: draftMusicEnabled, show_music_card: draftShowMusicCard, tilt_strength: tiltStrength, card_links: draftCardItems },
+                    settings: { ...(profile?.settings || {}), page_background_color: draftPageColor ?? null, page_background_image: draftPageImage ?? null, card_opacity: draftCardOpacity ?? 1, card_glass: draftCardGlass ?? false, music_card_color: draftMusicCardColor ?? null, music_card_glass: draftMusicCardGlass ?? false, music_card_opacity: draftMusicCardOpacity ?? 1, mouse_particles: draftParticlesEnabled ?? true, mouse_particles_color: draftParticlesColor ?? '#58a6ff', mouse_particles_count: draftParticlesCount ?? 3, mouse_particles_size: draftParticlesSize ?? 4, mouse_particles_life: draftParticlesLife ?? 60, music_enabled: draftMusicEnabled, show_music_card: draftShowMusicCard, tilt_strength: tiltStrength, card_links: draftCardItems, title_color: draftTitleColor || null, description_color: draftDescriptionColor || null, music_text_color: draftMusicTextColor || null, cards_text_color: draftCardsTextColor || null, icon_color: draftIconColor || null, glow_enabled: draftGlowEnabled ?? false, glow_color: draftGlowColor || null, glow_size: draftGlowSize ?? 8, glow_title: draftGlowTitle ?? false, glow_description: draftGlowDescription ?? false, glow_music: draftGlowMusic ?? false, glow_cards: draftGlowCards ?? false, glow_icons: draftGlowIcons ?? false },
                 }),
             });
             if (!res.ok) {
@@ -328,6 +354,14 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
         setDraftParticlesCount(typeof profile?.settings?.mouse_particles_count === 'number' ? profile!.settings!.mouse_particles_count! : 3);
         setDraftParticlesSize(typeof profile?.settings?.mouse_particles_size === 'number' ? profile!.settings!.mouse_particles_size! : 4);
         setDraftParticlesLife(typeof profile?.settings?.mouse_particles_life === 'number' ? profile!.settings!.mouse_particles_life! : 60);
+        setDraftGlowEnabled(typeof profile?.settings?.glow_enabled === 'boolean' ? !!profile!.settings!.glow_enabled : false);
+        setDraftGlowColor(typeof profile?.settings?.glow_color === 'string' ? profile!.settings!.glow_color! : '#00ffff');
+        setDraftGlowSize(typeof profile?.settings?.glow_size === 'number' ? profile!.settings!.glow_size! : 8);
+        setDraftTitleColor(typeof profile?.settings?.title_color === 'string' ? profile!.settings!.title_color! : "");
+        setDraftDescriptionColor(typeof profile?.settings?.description_color === 'string' ? profile!.settings!.description_color! : "");
+        setDraftMusicTextColor(typeof profile?.settings?.music_text_color === 'string' ? profile!.settings!.music_text_color! : "");
+        setDraftCardsTextColor(typeof profile?.settings?.cards_text_color === 'string' ? profile!.settings!.cards_text_color! : "");
+        setDraftIconColor(typeof profile?.settings?.icon_color === 'string' ? profile!.settings!.icon_color! : "");
         if (profile) {
             setDraftLinks(normalizeLinks(profile.links));
         } else {
@@ -395,6 +429,16 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
         computedInnerStyle.border = '1px solid rgba(255,255,255,0.06)';
     }
 
+    // saved glow settings (typed)
+    const savedGlowEnabled = typeof profile?.settings?.glow_enabled === 'boolean' ? !!profile!.settings!.glow_enabled : false;
+    const savedGlowColor = typeof profile?.settings?.glow_color === 'string' ? profile!.settings!.glow_color! : undefined;
+    const savedGlowSize = typeof profile?.settings?.glow_size === 'number' ? profile!.settings!.glow_size! : 8;
+    const savedGlowTitle = typeof profile?.settings?.glow_title === 'boolean' ? !!profile!.settings!.glow_title : false;
+    const savedGlowDescription = typeof profile?.settings?.glow_description === 'boolean' ? !!profile!.settings!.glow_description : false;
+    const savedGlowMusic = typeof profile?.settings?.glow_music === 'boolean' ? !!profile!.settings!.glow_music : false;
+    const savedGlowCards = typeof profile?.settings?.glow_cards === 'boolean' ? !!profile!.settings!.glow_cards : false;
+    const savedGlowIcons = typeof profile?.settings?.glow_icons === 'boolean' ? !!profile!.settings!.glow_icons : false;
+
     return (
         <>
             <TiltWrapper outerClassName="w-[800px] flex justify-center" perspective={1000} maxRotate={tiltStrength} scale={1.03} innerClassName="relative w-full max-w-3xl bg-transparent border border-white/10 rounded-3xl p-8 shadow-[0_0_40px_rgba(0,0,0,0.5)] flex flex-col gap-8" innerStyle={computedInnerStyle}>
@@ -424,9 +468,9 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
                             )}
                         </div>
                     </div>
-                    <h1 className="mt-4 text-3xl font-bold tracking-tight text-gray-300">{loading ? 'Loading…' : profile?.full_name ?? username}</h1>
+                    <h1 className="mt-4 text-3xl font-bold tracking-tight" style={{ color: editing ? (draftTitleColor || undefined) : (typeof profile?.settings?.title_color === 'string' ? profile!.settings!.title_color! : undefined), textShadow: (editing ? (draftGlowEnabled && draftGlowTitle ? `0 0 ${draftGlowSize}px ${draftGlowColor}, 0 0 ${Math.max(1, Math.round(draftGlowSize * 0.6))}px ${draftGlowColor}` : undefined) : (savedGlowTitle && savedGlowColor ? `0 0 ${savedGlowSize}px ${savedGlowColor}, 0 0 ${Math.max(1, Math.round(savedGlowSize * 0.6))}px ${savedGlowColor}` : undefined)) }}>{loading ? 'Loading…' : profile?.full_name ?? username}</h1>
                     {(editing ? draftDescription : profile?.description) ? (
-                        <p className="mt-2 text-sm text-gray-400">{editing ? draftDescription : profile?.description}</p>
+                        <p className="mt-2 text-sm whitespace-pre-wrap" style={{ color: editing ? (draftDescriptionColor || undefined) : (typeof profile?.settings?.description_color === 'string' ? profile!.settings!.description_color! : undefined), textShadow: (editing ? (draftGlowEnabled && draftGlowDescription ? `0 0 ${draftGlowSize}px ${draftGlowColor}, 0 0 ${Math.max(1, Math.round(draftGlowSize * 0.6))}px ${draftGlowColor}` : undefined) : (savedGlowDescription && savedGlowColor ? `0 0 ${savedGlowSize}px ${savedGlowColor}, 0 0 ${Math.max(1, Math.round(savedGlowSize * 0.6))}px ${savedGlowColor}` : undefined)) }}>{editing ? draftDescription : profile?.description}</p>
                     ) : null}
                     {error && <p className="text-sm text-red-400 mt-2">{error}</p>}
 
@@ -449,12 +493,17 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
                                 setDraftShowMusicCard((profile?.settings && typeof profile.settings.show_music_card === 'boolean') ? !!profile.settings.show_music_card : true);
                                 setTiltStrength(profile?.settings?.tilt_strength ?? 50);
                                 setDraftDescription(profile?.description ?? "");
+                                setDraftTitleColor(typeof (profile?.settings?.title_color) === 'string' ? profile!.settings!.title_color! : "");
+                                setDraftDescriptionColor(typeof profile?.settings?.description_color === 'string' ? profile!.settings!.description_color! : "");
+                                setDraftMusicTextColor(typeof profile?.settings?.music_text_color === 'string' ? profile!.settings!.music_text_color! : "");
+                                setDraftCardsTextColor(typeof profile?.settings?.cards_text_color === 'string' ? profile!.settings!.cards_text_color! : "");
+                                setDraftIconColor(typeof profile?.settings?.icon_color === 'string' ? profile!.settings!.icon_color! : "");
                                 setDraftCardItems((profile?.settings?.card_links && Array.isArray(profile!.settings!.card_links)) ? profile!.settings!.card_links : []);
                             }}>Edit profile</button>
                         </div>
                     )}
                 </div>
-                <SocialIcons links={editing ? draftLinks : (profile?.links && Array.isArray(profile.links) ? profile.links : [])} className="flex justify-center gap-6" iconClassName="text-2xl text-white/70" />
+                <SocialIcons links={editing ? draftLinks : (profile?.links && Array.isArray(profile.links) ? profile.links : [])} className="flex justify-center gap-6" iconClassName="text-2xl text-white/70" iconColor={editing ? (draftIconColor || undefined) : (typeof profile?.settings?.icon_color === 'string' ? profile!.settings!.icon_color! : undefined)} glowEnabled={editing ? (draftGlowEnabled && draftGlowIcons) : savedGlowIcons} glowColor={editing ? draftGlowColor : savedGlowColor} glowSize={editing ? draftGlowSize : savedGlowSize} />
                 <div className="flex justify-center">
                     {((editing ? draftMusicEnabled : (profile?.settings?.music_enabled ?? true))) && (
                         musicUrl ? (
@@ -464,6 +513,11 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
                                 showCard={editing ? draftShowMusicCard : (profile?.settings?.show_music_card ?? true)}
                                 glass={editing ? draftMusicCardGlass : !!profile?.settings?.music_card_glass}
                                 opacity={editing ? draftMusicCardOpacity : profile?.settings?.music_card_opacity ?? 1}
+                                textColor={editing ? (draftMusicTextColor || undefined) : (typeof profile?.settings?.music_text_color === 'string' ? profile!.settings!.music_text_color! : undefined)}
+                                iconColor={editing ? (draftIconColor || undefined) : (typeof profile?.settings?.icon_color === 'string' ? profile!.settings!.icon_color! : undefined)}
+                                glowEnabled={editing ? (draftGlowEnabled && draftGlowMusic) : savedGlowMusic}
+                                glowColor={editing ? draftGlowColor : savedGlowColor}
+                                glowSize={editing ? draftGlowSize : savedGlowSize}
                             />
                         ) : (
                             <div className="w-full max-w-2xl mx-auto">
@@ -500,10 +554,12 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
 
                                     return (
                                         <a key={i} href={url} target="_blank" rel="noopener noreferrer" className={`${spanClass} flex items-center gap-4 bg-white/5 hover:bg-white/10 p-4 rounded-xl border border-white/5 transition-all`}>
-                                            <Icon className="text-4xl text-white/70 shrink-0" />
+                                            <span className="shrink-0" style={{ color: editing ? (draftIconColor || undefined) : (typeof profile?.settings?.icon_color === 'string' ? profile!.settings!.icon_color! : undefined), filter: editing ? (draftGlowEnabled && draftGlowIcons ? `drop-shadow(0 0 ${draftGlowSize}px ${draftGlowColor})` : undefined) : (savedGlowIcons && savedGlowColor ? `drop-shadow(0 0 ${savedGlowSize}px ${savedGlowColor})` : undefined) }}>
+                                                <Icon className="text-4xl" />
+                                            </span>
                                             <div className="flex flex-col min-w-0">
-                                                <span className="font-medium text-gray-200 truncate block">{title}</span>
-                                                <span className="font-medium text-gray-500 truncate block">{subtitle}</span>
+                                                <span className="font-medium truncate block" style={{ color: editing ? (draftCardsTextColor || undefined) : (typeof profile?.settings?.cards_text_color === 'string' ? profile!.settings!.cards_text_color! : undefined), textShadow: (editing ? (draftGlowEnabled && draftGlowCards ? `0 0 ${draftGlowSize}px ${draftGlowColor}` : undefined) : (savedGlowCards && savedGlowColor ? `0 0 ${savedGlowSize}px ${savedGlowColor}` : undefined)) }}>{title}</span>
+                                                <span className="font-medium truncate block" style={{ color: editing ? (draftCardsTextColor || undefined) : (typeof profile?.settings?.cards_text_color === 'string' ? profile!.settings!.cards_text_color! : undefined), textShadow: (editing ? (draftGlowEnabled && draftGlowCards ? `0 0 ${draftGlowSize}px ${draftGlowColor}` : undefined) : (savedGlowCards && savedGlowColor ? `0 0 ${savedGlowSize}px ${savedGlowColor}` : undefined)) }}>{subtitle}</span>
                                             </div>
                                         </a>
                                     );
@@ -568,6 +624,32 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
                         setParticlesSectionOpen={setParticlesSectionOpen}
                         setDraftParticlesLife={setDraftParticlesLife}
                         onBgFileChange={handleBgFileChange}
+                        draftTitleColor={draftTitleColor}
+                        setDraftTitleColor={setDraftTitleColor}
+                        draftDescriptionColor={draftDescriptionColor}
+                        setDraftDescriptionColor={setDraftDescriptionColor}
+                        draftMusicTextColor={draftMusicTextColor}
+                        setDraftMusicTextColor={setDraftMusicTextColor}
+                        draftCardsTextColor={draftCardsTextColor}
+                        setDraftCardsTextColor={setDraftCardsTextColor}
+                        draftIconColor={draftIconColor}
+                        setDraftIconColor={setDraftIconColor}
+                        draftGlowEnabled={draftGlowEnabled}
+                        setDraftGlowEnabled={setDraftGlowEnabled}
+                        draftGlowColor={draftGlowColor}
+                        setDraftGlowColor={setDraftGlowColor}
+                        draftGlowSize={draftGlowSize}
+                        setDraftGlowSize={setDraftGlowSize}
+                        draftGlowTitle={draftGlowTitle}
+                        setDraftGlowTitle={setDraftGlowTitle}
+                        draftGlowDescription={draftGlowDescription}
+                        setDraftGlowDescription={setDraftGlowDescription}
+                        draftGlowMusic={draftGlowMusic}
+                        setDraftGlowMusic={setDraftGlowMusic}
+                        draftGlowCards={draftGlowCards}
+                        setDraftGlowCards={setDraftGlowCards}
+                        draftGlowIcons={draftGlowIcons}
+                        setDraftGlowIcons={setDraftGlowIcons}
                     />
 
                     <LinksPanel draftLinks={draftLinks} updateLink={updateLink} addLink={addLink} removeLink={removeLink} onSave={handleSave} onCancel={handleCancelEdit} draftCardItems={draftCardItems} setDraftCardItems={setDraftCardItems} />
