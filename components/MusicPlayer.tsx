@@ -166,12 +166,18 @@ function useYTPlayer(url: string, attemptKey = 0) {
 
     const toggle = useCallback(() => {
         if (!player.current) return
-        if (playing) {
-            player.current.pauseVideo()
-        } else {
-            player.current.playVideo()
+        try {
+            const state = player.current.getPlayerState?.()
+            if (typeof state !== 'undefined' && state === window.YT.PlayerState.PLAYING) {
+                player.current.pauseVideo()
+            } else {
+                player.current.playVideo()
+            }
+        } catch {
+            // fallback: attempt to play if we can't read state
+            try { player.current.playVideo() } catch { }
         }
-    }, [playing])
+    }, [])
 
     const seek = useCallback((t: number) => {
         player.current?.seekTo(t, true)
@@ -201,25 +207,44 @@ export function MusicPlayer({ url, cardColor, showCard = true, glass = false, op
 
     const [showPlayPrompt, setShowPlayPrompt] = useState(false)
 
-    useEffect(() => {
-        // try to trigger play on ready (may be blocked by browser); if blocked, show play prompt
-        if (!ready) return
-        if (playing) { setTimeout(() => setShowPlayPrompt(false), 0); return }
-        // attempt to play once (user gesture may be required)
-        try { toggle() } catch { }
-        const id = setTimeout(() => {
-            if (!playing) setShowPlayPrompt(true)
-        }, 700)
-        return () => clearTimeout(id)
-    }, [ready, playing, toggle])
+    const autoplayAttempted = useRef(false);
+
+    const hasInteracted = useRef(false);
 
     useEffect(() => {
-        // Se já está tocando ou se o player ainda nem está pronto, não faz nada
-        if (playing || !ready) return;
+        if (!ready) return;
+
+        // 1. Verifica PRIMEIRO se já fizemos a rotina de autoplay.
+        // Se sim, cai fora! Isso impede que ele force o play quando você tentar pausar.
+        if (autoplayAttempted.current) return;
+
+        // 2. Marca na memória IMEDIATAMENTE que já passou por aqui
+        autoplayAttempted.current = true;
+
+        // 3. Se a música já estiver tocando, apenas esconde o aviso e encerra
+        if (playing) {
+            setTimeout(() => setShowPlayPrompt(false), 0);
+            return;
+        }
+
+        // 4. Se não estiver, tenta dar o play forçado
+        try { toggle() } catch { }
+
+        const id = setTimeout(() => {
+            setShowPlayPrompt(true);
+        }, 700);
+
+        return () => clearTimeout(id);
+    }, [ready, playing, toggle]);
+
+    useEffect(() => {
+        // Se já interagiu antes, ou já está tocando, ou o player não está pronto: ignora.
+        if (playing || !ready || hasInteracted.current) return;
 
         function onUserInteract() {
+            hasInteracted.current = true; // Salva na memória que o usuário já interagiu!
             try {
-                toggle(); // Tenta dar o play
+                toggle();
                 setShowPlayPrompt(false);
             } catch { }
             removeListeners();
@@ -234,7 +259,7 @@ export function MusicPlayer({ url, cardColor, showCard = true, glass = false, op
         window.addEventListener('keydown', onUserInteract, { once: true });
 
         return () => removeListeners();
-    }, [playing, ready, toggle]); // Adicionamos o 'ready' aqui nas dependências
+    }, [playing, ready, toggle]);
 
     const barRef = useRef<HTMLDivElement>(null)
     const dragging = useRef(false)
@@ -360,7 +385,10 @@ export function MusicPlayer({ url, cardColor, showCard = true, glass = false, op
 
                 <div>
                     <button
-                        onClick={toggle}
+                        onClick={() => {
+                            hasInteracted.current = true;
+                            toggle();
+                        }}
                         disabled={!ready}
                         aria-label={playing ? "Pausar" : "Tocar"}
                         className="flex h-12 w-12 items-center justify-center rounded-full bg-white/5 text-white transition-transform hover:scale-105 active:scale-95 disabled:opacity-30"
