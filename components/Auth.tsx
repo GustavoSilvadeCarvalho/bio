@@ -92,7 +92,12 @@ export default function Auth() {
         setLoading(true);
         setMessage(null);
         try {
-            const { error } = await sb.auth.signUp({ email, password });
+            // pass username in user_metadata so DB trigger can use it when creating profile
+            const { error } = await sb.auth.signUp({
+                email,
+                password,
+                options: { data: { username: username ?? undefined } },
+            } as any);
             if (error) setMessage(error.message);
             else setMessage("Conta criada. Verifique seu e-mail se for requerido.");
         } catch (err: unknown) {
@@ -187,6 +192,19 @@ export default function Auth() {
                                 className="w-full p-3 rounded-lg bg-white/5 border border-white/6 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
+
+                        {mode === "signup" && (
+                            <div>
+                                <label className="text-sm text-gray-300 mb-2 block">Username</label>
+                                <input
+                                    aria-label="username"
+                                    placeholder="username"
+                                    value={username ?? ''}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    className="w-full p-3 rounded-lg bg-white/5 border border-white/6"
+                                />
+                            </div>
+                        )}
 
                         <div>
                             <label className="text-sm text-gray-300 mb-2 block">Senha</label>
