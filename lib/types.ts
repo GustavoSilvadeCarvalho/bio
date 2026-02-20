@@ -41,5 +41,6 @@ export type Profile = {
   music_url?: string | null;
   views?: number | null;
   settings?: ProfileSettings | null;
+  is_premium?: boolean | null;
   updated_at?: string | null;
 };

@@ -34,7 +34,7 @@ export async function GET(
     const { data, error } = await supabase
       .from("profiles")
       .select(
-        "id, username, full_name, description, avatar_url, background_color, theme, links, music_url, views, settings, updated_at, owner_id",
+        "id, username, full_name, description, avatar_url, background_color, theme, links, music_url, views, settings, updated_at, owner_id, is_premium",
       )
       .eq("username", username)
       .maybeSingle();
@@ -88,12 +88,15 @@ export async function PUT(
 
     const { data: existing } = await (supabaseAdmin ?? supabase)
       .from("profiles")
-      .select("owner_id")
+      .select("owner_id, is_premium")
       .eq("username", username)
       .maybeSingle();
 
     const existingOwner =
-      (existing as { owner_id?: string } | null)?.owner_id ?? null;
+      (existing as { owner_id?: string; is_premium?: boolean } | null)
+        ?.owner_id ?? null;
+    const existingIsPremium = !!(existing as { is_premium?: boolean } | null)
+      ?.is_premium;
 
     if (existingOwner && existingOwner !== callerId)
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -102,16 +105,67 @@ export async function PUT(
       if (hasSetAuth(supabaseAdmin)) supabaseAdmin.auth.setAuth(token);
     } catch (e: unknown) {}
 
+    // If the user is not premium, ignore premium-only fields that may be present
+    const premiumIgnored: string[] = [];
+
+    let filteredSettings: any = null;
+    if (body && typeof body === "object" && body.settings != null) {
+      // shallow clone
+      filteredSettings = { ...(body.settings as Record<string, unknown>) };
+
+      if (!existingIsPremium) {
+        const premiumKeys = [
+          "card_glass",
+          "music_card_glass",
+          "glow_enabled",
+          "glow_color",
+          "glow_size",
+          "glow_title",
+          "glow_description",
+          "glow_music",
+          "glow_cards",
+          "glow_icons",
+          "mouse_particles",
+          "mouse_particles_color",
+          "mouse_particles_count",
+          "mouse_particles_size",
+          "mouse_particles_life",
+          "page_background_image",
+        ];
+
+        for (const k of premiumKeys) {
+          if (k in filteredSettings) {
+            delete filteredSettings[k];
+            premiumIgnored.push(`settings.${k}`);
+          }
+        }
+      }
+    } else if (body && typeof body === "object") {
+      filteredSettings = body.settings ?? null;
+    }
+
+    // avatar and background animated are premium-only; ignore top-level avatar_url when not premium
+    let avatarUrlToSave = body.avatar_url ?? null;
+    if (
+      !existingIsPremium &&
+      body &&
+      Object.prototype.hasOwnProperty.call(body, "avatar_url")
+    ) {
+      avatarUrlToSave = undefined; // ignore change
+      premiumIgnored.push("avatar_url");
+    }
+
     const payload = {
       username,
       full_name: body.full_name ?? null,
       description: body.description ?? null,
-      avatar_url: body.avatar_url ?? null,
+      avatar_url:
+        avatarUrlToSave === undefined ? undefined : (avatarUrlToSave ?? null),
       background_color: body.background_color ?? null,
       theme: body.theme ?? null,
       links: body.links ?? null,
       music_url: body.music_url ?? null,
-      settings: body.settings ?? null,
+      settings: filteredSettings ?? null,
       views: body.views ?? undefined,
       owner_id: existingOwner ?? callerId,
       updated_at: new Date().toISOString(),
@@ -136,6 +190,9 @@ export async function PUT(
 
     try {
       if (hasSetAuth(supabase)) supabase.auth.setAuth(token);
+      try {
+        if (hasSetAuth(supabase)) supabase.auth.setAuth(token);
+      } catch (_e) {}
       const result = await supabase
         .from("profiles")
         .upsert(payload, { onConflict: "username" })
@@ -149,7 +206,9 @@ export async function PUT(
         );
       }
 
-      return NextResponse.json(result.data);
+      const respBody: any = { data: result.data };
+      if (premiumIgnored.length) respBody.ignored = premiumIgnored;
+      return NextResponse.json(respBody);
     } catch (e: unknown) {
       console.error("profiles.upsert exception:", e);
       const message = e instanceof Error ? e.message : String(e);

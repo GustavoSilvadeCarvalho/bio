@@ -79,6 +79,8 @@ interface Props {
     setDraftCardOpacity?: (v: number) => void;
     draftCardGlass?: boolean;
     setDraftCardGlass?: (v: boolean | ((prev: boolean) => boolean)) => void;
+    draftTiltStrength?: number;
+    setDraftTiltStrength?: (v: number) => void;
 }
 
 export default function ProfilePanel(props: Props) {
@@ -104,8 +106,17 @@ export default function ProfilePanel(props: Props) {
                                 <Image src={(props.draftAvatarUrl ?? (p?.avatar_url ?? `https://github.com/${props.username}.png`)) as string} alt="avatar preview" width={64} height={64} className="w-full h-full object-cover" />
                             </div>
                             <div>
-                                <input type="file" accept="image/*" id="avatar-file" className="hidden" onChange={props.onAvatarFileChange} />
-                                <label htmlFor="avatar-file" className="px-3 py-2 bg-white/5 rounded text-sm cursor-pointer">{props.avatarUploading ? 'Enviando...' : 'Selecionar imagem'}</label>
+                                {(() => {
+                                    const isPremium = !!props.profile?.is_premium;
+                                    const accept = isPremium ? "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,.webm" : "image/jpeg,image/png,image/webp";
+                                    return (
+                                        <>
+                                            <input type="file" accept={accept} id="avatar-file" className="hidden" onChange={props.onAvatarFileChange} />
+                                            <label htmlFor="avatar-file" className="px-3 py-2 bg-white/5 rounded text-sm cursor-pointer">{props.avatarUploading ? 'Enviando...' : 'Selecionar imagem'}</label>
+                                            {!isPremium && <p className="mt-2 text-xs text-gray-400">GIFs e vídeos (MP4/WebM) exclusivos para Premium</p>}
+                                        </>
+                                    );
+                                })()}
                             </div>
                         </div>
 
@@ -173,20 +184,22 @@ export default function ProfilePanel(props: Props) {
                             <input type="color" className="w-12 h-10 p-1 rounded bg-white/3 border border-white/5" value={props.draftMusicCardColor || '#000000'} onChange={(e) => props.setDraftMusicCardColor(e.target.value)} />
                             <input placeholder="#rrggbb" className="flex-1 p-2 rounded bg-white/3 border border-white/5 text-white" value={props.draftMusicCardColor} onChange={(e) => props.setDraftMusicCardColor(e.target.value)} />
                         </div>
-                        <div className="flex items-center gap-3 mt-3">
-                            <label className="flex items-center gap-3">
-                                <span className="text-sm text-gray-300">Efeito vidro no player</span>
-                                <button
-                                    type="button"
-                                    role="switch"
-                                    aria-checked={props.draftMusicCardGlass}
-                                    onClick={() => props.setDraftMusicCardGlass?.(!(props.draftMusicCardGlass ?? false))}
-                                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none ${(props.draftMusicCardGlass ?? false) ? 'bg-green-500' : 'bg-gray-600'}`}
-                                >
-                                    <span className={`absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-white transition-transform duration-200 ${(props.draftMusicCardGlass ?? false) ? 'translate-x-5' : 'translate-x-0'}`} />
-                                </button>
-                            </label>
-                        </div>
+                        {props.profile?.is_premium && (
+                            <div className="flex items-center gap-3 mt-3">
+                                <label className="flex items-center gap-3">
+                                    <span className="text-sm text-gray-300">Efeito vidro no player</span>
+                                    <button
+                                        type="button"
+                                        role="switch"
+                                        aria-checked={props.draftMusicCardGlass}
+                                        onClick={() => props.setDraftMusicCardGlass?.(!(props.draftMusicCardGlass ?? false))}
+                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none ${(props.draftMusicCardGlass ?? false) ? 'bg-green-500' : 'bg-gray-600'}`}
+                                    >
+                                        <span className={`absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-white transition-transform duration-200 ${(props.draftMusicCardGlass ?? false) ? 'translate-x-5' : 'translate-x-0'}`} />
+                                    </button>
+                                </label>
+                            </div>
+                        )}
                         <label className="block text-sm text-gray-300 mt-3">Cor do texto do player</label>
                         <div className="flex gap-2 mt-2 items-center">
                             <input type="color" className="w-12 h-10 p-1 rounded bg-white/3 border border-white/5" value={props.draftMusicTextColor || '#ffffff'} onChange={(e) => props.setDraftMusicTextColor?.(e.target.value)} />
@@ -201,57 +214,59 @@ export default function ProfilePanel(props: Props) {
                 )}
             </div>
 
-            <div className="mt-4">
-                <button type="button" onClick={() => props.setParticlesSectionOpen?.((v) => !v)} className="flex w-full items-center justify-between px-2 py-2 bg-white/5 hover:bg-white/10 rounded">
-                    <span className="font-medium text-white">Partículas</span>
-                    <svg className={`h-4 w-4 text-white transition-transform ${props.particlesSectionOpen ? 'rotate-90' : ''}`} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 4L14 10L6 16V4Z" fill="currentColor" /></svg>
-                </button>
+            {props.profile?.is_premium && (
+                <div className="mt-4">
+                    <button type="button" onClick={() => props.setParticlesSectionOpen?.((v) => !v)} className="flex w-full items-center justify-between px-2 py-2 bg-white/5 hover:bg-white/10 rounded">
+                        <span className="font-medium text-white">Partículas</span>
+                        <svg className={`h-4 w-4 text-white transition-transform ${props.particlesSectionOpen ? 'rotate-90' : ''}`} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 4L14 10L6 16V4Z" fill="currentColor" /></svg>
+                    </button>
 
-                {props.particlesSectionOpen && (
-                    <div className="mt-3 space-y-3">
-                        <label className="flex items-center gap-3">
-                            <span className="text-sm text-gray-300">Rastro de partículas</span>
-                            <button
-                                type="button"
-                                role="switch"
-                                aria-checked={props.draftParticlesEnabled}
-                                onClick={() => props.setDraftParticlesEnabled?.(!(props.draftParticlesEnabled ?? false))}
-                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none ${(props.draftParticlesEnabled ?? false) ? 'bg-green-500' : 'bg-gray-600'}`}
-                            >
-                                <span className={`absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-white transition-transform duration-200 ${(props.draftParticlesEnabled ?? false) ? 'translate-x-5' : 'translate-x-0'}`} />
-                            </button>
-                        </label>
+                    {props.particlesSectionOpen && (
+                        <div className="mt-3 space-y-3">
+                            <label className="flex items-center gap-3">
+                                <span className="text-sm text-gray-300">Rastro de partículas</span>
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={props.draftParticlesEnabled}
+                                    onClick={() => props.setDraftParticlesEnabled?.(!(props.draftParticlesEnabled ?? false))}
+                                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none ${(props.draftParticlesEnabled ?? false) ? 'bg-green-500' : 'bg-gray-600'}`}
+                                >
+                                    <span className={`absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-white transition-transform duration-200 ${(props.draftParticlesEnabled ?? false) ? 'translate-x-5' : 'translate-x-0'}`} />
+                                </button>
+                            </label>
 
-                        {props.draftParticlesEnabled && (
-                            <div className="mt-3 space-y-3">
-                                <label className="block text-sm text-gray-300">Cor das partículas</label>
-                                <div className="flex gap-2 items-center">
-                                    <input type="color" className="w-12 h-10 p-1 rounded bg-white/3 border border-white/5" value={props.draftParticlesColor || '#58a6ff'} onChange={(e) => props.setDraftParticlesColor?.(e.target.value)} />
-                                    <input placeholder="#rrggbb" className="flex-1 p-2 rounded bg-white/3 border border-white/5 text-white" value={props.draftParticlesColor} onChange={(e) => props.setDraftParticlesColor?.(e.target.value)} />
+                            {props.draftParticlesEnabled && (
+                                <div className="mt-3 space-y-3">
+                                    <label className="block text-sm text-gray-300">Cor das partículas</label>
+                                    <div className="flex gap-2 items-center">
+                                        <input type="color" className="w-12 h-10 p-1 rounded bg-white/3 border border-white/5" value={props.draftParticlesColor || '#58a6ff'} onChange={(e) => props.setDraftParticlesColor?.(e.target.value)} />
+                                        <input placeholder="#rrggbb" className="flex-1 p-2 rounded bg-white/3 border border-white/5 text-white" value={props.draftParticlesColor} onChange={(e) => props.setDraftParticlesColor?.(e.target.value)} />
+                                    </div>
+
+                                    <label className="block text-sm text-gray-300">Intensidade</label>
+                                    <div className="flex items-center gap-3">
+                                        <input type="range" min={1} max={12} value={props.draftParticlesCount ?? 3} onChange={(e) => props.setDraftParticlesCount?.(Number(e.target.value))} />
+                                        <span className="text-sm text-gray-300">{props.draftParticlesCount ?? 3}</span>
+                                    </div>
+
+                                    <label className="block text-sm text-gray-300">Tamanho médio</label>
+                                    <div className="flex items-center gap-3">
+                                        <input type="range" min={1} max={12} value={props.draftParticlesSize ?? 4} onChange={(e) => props.setDraftParticlesSize?.(Number(e.target.value))} />
+                                        <span className="text-sm text-gray-300">{props.draftParticlesSize ?? 4}px</span>
+                                    </div>
+
+                                    <label className="block text-sm text-gray-300">Vida (frames)</label>
+                                    <div className="flex items-center gap-3">
+                                        <input type="range" min={10} max={200} value={props.draftParticlesLife ?? 60} onChange={(e) => props.setDraftParticlesLife?.(Number(e.target.value))} />
+                                        <span className="text-sm text-gray-300">{props.draftParticlesLife ?? 60}</span>
+                                    </div>
                                 </div>
-
-                                <label className="block text-sm text-gray-300">Intensidade</label>
-                                <div className="flex items-center gap-3">
-                                    <input type="range" min={1} max={12} value={props.draftParticlesCount ?? 3} onChange={(e) => props.setDraftParticlesCount?.(Number(e.target.value))} />
-                                    <span className="text-sm text-gray-300">{props.draftParticlesCount ?? 3}</span>
-                                </div>
-
-                                <label className="block text-sm text-gray-300">Tamanho médio</label>
-                                <div className="flex items-center gap-3">
-                                    <input type="range" min={1} max={12} value={props.draftParticlesSize ?? 4} onChange={(e) => props.setDraftParticlesSize?.(Number(e.target.value))} />
-                                    <span className="text-sm text-gray-300">{props.draftParticlesSize ?? 4}px</span>
-                                </div>
-
-                                <label className="block text-sm text-gray-300">Vida (frames)</label>
-                                <div className="flex items-center gap-3">
-                                    <input type="range" min={10} max={200} value={props.draftParticlesLife ?? 60} onChange={(e) => props.setDraftParticlesLife?.(Number(e.target.value))} />
-                                    <span className="text-sm text-gray-300">{props.draftParticlesLife ?? 60}</span>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
-            </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
 
             <div className="mt-4">
                 <button type="button" onClick={() => setAppearanceOpen(v => !v)} className="flex w-full items-center justify-between px-2 py-2 bg-white/5 hover:bg-white/10 rounded">
@@ -276,8 +291,17 @@ export default function ProfilePanel(props: Props) {
                         <label className="block text-sm text-gray-300 mt-1">Imagem/GIF de fundo</label>
                         <div className="flex gap-2 mt-2 items-center">
                             <input placeholder="https://..." className="flex-1 p-2 rounded bg-white/3 border border-white/5 text-white" value={props.draftPageImage ?? ''} onChange={(e) => props.setDraftPageImage?.(e.target.value || null)} />
-                            <input type="file" accept="image/*,video/*" id="bg-file" className="hidden" onChange={props.onBgFileChange} />
-                            <label htmlFor="bg-file" className="px-3 py-2 bg-white/5 rounded text-sm cursor-pointer">{props.avatarUploading ? 'Enviando...' : 'Upload'}</label>
+                            {(() => {
+                                const isPremium = !!props.profile?.is_premium;
+                                const accept = isPremium ? "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,.webm" : "image/jpeg,image/png,image/webp";
+                                return (
+                                    <>
+                                        <input type="file" accept={accept} id="bg-file" className="hidden" onChange={props.onBgFileChange} />
+                                        <label htmlFor="bg-file" className="px-3 py-2 bg-white/5 rounded text-sm cursor-pointer">{props.avatarUploading ? 'Enviando...' : 'Upload'}</label>
+                                        {!isPremium && <p className="mt-2 text-xs text-gray-400">GIFs e vídeos (MP4/WebM) exclusivos para Premium</p>}
+                                    </>
+                                );
+                            })()}
                         </div>
 
                         <label className="block text-sm text-gray-300 mt-1">Opacidade do card</label>
@@ -298,82 +322,95 @@ export default function ProfilePanel(props: Props) {
                             <input placeholder="#rrggbb" className="flex-1 p-2 rounded bg-white/3 border border-white/5 text-white" value={props.draftIconColor ?? ''} onChange={(e) => props.setDraftIconColor?.(e.target.value)} />
                         </div>
 
-                        <label className="block text-sm text-gray-300 mt-1">Estilo do card</label>
-                        <div className="flex items-center gap-3 mt-2">
-                            <label className="flex items-center gap-3">
-                                <span className="text-sm text-gray-300">Efeito vidro</span>
-                                <button
-                                    type="button"
-                                    role="switch"
-                                    aria-checked={props.draftCardGlass}
-                                    onClick={() => props.setDraftCardGlass?.(!(props.draftCardGlass ?? false))}
-                                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none ${(props.draftCardGlass ?? false) ? 'bg-green-500' : 'bg-gray-600'}`}
-                                >
-                                    <span className={`absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-white transition-transform duration-200 ${(props.draftCardGlass ?? false) ? 'translate-x-5' : 'translate-x-0'}`} />
-                                </button>
-                            </label>
-                        </div>
-                        <label className="block text-sm text-gray-300 mt-3">Glow nas fontes</label>
-                        <div className="flex items-center gap-3">
-                            <label className="flex items-center gap-3">
-                                <span className="text-sm text-gray-300">Habilitar glow</span>
-                                <button
-                                    type="button"
-                                    role="switch"
-                                    aria-checked={props.draftGlowEnabled}
-                                    onClick={() => props.setDraftGlowEnabled?.(!(props.draftGlowEnabled ?? false))}
-                                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none ${(props.draftGlowEnabled ?? false) ? 'bg-green-500' : 'bg-gray-600'}`}
-                                >
-                                    <span className={`absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-white transition-transform duration-200 ${(props.draftGlowEnabled ?? false) ? 'translate-x-5' : 'translate-x-0'}`} />
-                                </button>
-                            </label>
-                        </div>
-
-                        {props.draftGlowEnabled && (
+                        {props.profile?.is_premium && (
                             <>
-                                <label className="block text-sm text-gray-300 mt-2">Cor do glow</label>
-                                <div className="flex gap-2 mt-2 items-center">
-                                    <input type="color" className="w-12 h-10 p-1 rounded bg-white/3 border border-white/5" value={props.draftGlowColor || '#00ffff'} onChange={(e) => props.setDraftGlowColor?.(e.target.value)} />
-                                    <input placeholder="#rrggbb" className="flex-1 p-2 rounded bg-white/3 border border-white/5 text-white" value={props.draftGlowColor ?? ''} onChange={(e) => props.setDraftGlowColor?.(e.target.value)} />
+                                <label className="block text-sm text-gray-300 mt-3">Estilo do card</label>
+                                <div className="flex items-center gap-3 mt-2">
+                                    <label className="flex items-center gap-3">
+                                        <span className="text-sm text-gray-300">Efeito vidro</span>
+                                        <button
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={props.draftCardGlass}
+                                            onClick={() => props.setDraftCardGlass?.(!(props.draftCardGlass ?? false))}
+                                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none ${(props.draftCardGlass ?? false) ? 'bg-green-500' : 'bg-gray-600'}`}
+                                        >
+                                            <span className={`absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-white transition-transform duration-200 ${(props.draftCardGlass ?? false) ? 'translate-x-5' : 'translate-x-0'}`} />
+                                        </button>
+                                    </label>
                                 </div>
-                                <label className="block text-sm text-gray-300 mt-2">Tamanho do glow (px)</label>
+                            </>
+                        )}
+                        <label className="block text-sm text-gray-300 mt-3">Intensidade do efeito 3D</label>
+                        <div className="flex items-center gap-3 mt-2">
+                            <input type="range" min={0} max={90} value={props.draftTiltStrength ?? 50} onChange={(e) => props.setDraftTiltStrength?.(Number(e.target.value))} />
+                            <span className="text-sm text-gray-300">{props.draftTiltStrength ?? 50}°</span>
+                        </div>
+                        {props.profile?.is_premium && (
+                            <>
+                                <label className="block text-sm text-gray-300 mt-3">Glow nas fontes</label>
                                 <div className="flex items-center gap-3">
-                                    <input type="range" min={0} max={40} value={props.draftGlowSize ?? 8} onChange={(e) => props.setDraftGlowSize?.(Number(e.target.value))} />
-                                    <span className="text-sm text-gray-300">{props.draftGlowSize ?? 8}px</span>
-                                </div>
-                                <label className="block text-sm text-gray-300 mt-3">Aplicar glow em</label>
-                                <div className="mt-2 space-y-2">
                                     <label className="flex items-center gap-3">
-                                        <span className="text-sm text-gray-300">Título</span>
-                                        <button type="button" role="switch" aria-checked={props.draftGlowTitle} onClick={() => props.setDraftGlowTitle?.(!(props.draftGlowTitle ?? false))} className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none ${(props.draftGlowTitle ?? false) ? 'bg-green-500' : 'bg-gray-600'}`}>
-                                            <span className={`absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-white transition-transform duration-200 ${(props.draftGlowTitle ?? false) ? 'translate-x-5' : 'translate-x-0'}`} />
-                                        </button>
-                                    </label>
-                                    <label className="flex items-center gap-3">
-                                        <span className="text-sm text-gray-300">Descrição</span>
-                                        <button type="button" role="switch" aria-checked={props.draftGlowDescription} onClick={() => props.setDraftGlowDescription?.(!(props.draftGlowDescription ?? false))} className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none ${(props.draftGlowDescription ?? false) ? 'bg-green-500' : 'bg-gray-600'}`}>
-                                            <span className={`absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-white transition-transform duration-200 ${(props.draftGlowDescription ?? false) ? 'translate-x-5' : 'translate-x-0'}`} />
-                                        </button>
-                                    </label>
-                                    <label className="flex items-center gap-3">
-                                        <span className="text-sm text-gray-300">Player</span>
-                                        <button type="button" role="switch" aria-checked={props.draftGlowMusic} onClick={() => props.setDraftGlowMusic?.(!(props.draftGlowMusic ?? false))} className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none ${(props.draftGlowMusic ?? false) ? 'bg-green-500' : 'bg-gray-600'}`}>
-                                            <span className={`absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-white transition-transform duration-200 ${(props.draftGlowMusic ?? false) ? 'translate-x-5' : 'translate-x-0'}`} />
-                                        </button>
-                                    </label>
-                                    <label className="flex items-center gap-3">
-                                        <span className="text-sm text-gray-300">Cards</span>
-                                        <button type="button" role="switch" aria-checked={props.draftGlowCards} onClick={() => props.setDraftGlowCards?.(!(props.draftGlowCards ?? false))} className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none ${(props.draftGlowCards ?? false) ? 'bg-green-500' : 'bg-gray-600'}`}>
-                                            <span className={`absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-white transition-transform duration-200 ${(props.draftGlowCards ?? false) ? 'translate-x-5' : 'translate-x-0'}`} />
-                                        </button>
-                                    </label>
-                                    <label className="flex items-center gap-3">
-                                        <span className="text-sm text-gray-300">Ícones</span>
-                                        <button type="button" role="switch" aria-checked={props.draftGlowIcons} onClick={() => props.setDraftGlowIcons?.(!(props.draftGlowIcons ?? false))} className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none ${(props.draftGlowIcons ?? false) ? 'bg-green-500' : 'bg-gray-600'}`}>
-                                            <span className={`absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-white transition-transform duration-200 ${(props.draftGlowIcons ?? false) ? 'translate-x-5' : 'translate-x-0'}`} />
+                                        <span className="text-sm text-gray-300">Habilitar glow</span>
+                                        <button
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={props.draftGlowEnabled}
+                                            onClick={() => props.setDraftGlowEnabled?.(!(props.draftGlowEnabled ?? false))}
+                                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none ${(props.draftGlowEnabled ?? false) ? 'bg-green-500' : 'bg-gray-600'}`}
+                                        >
+                                            <span className={`absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-white transition-transform duration-200 ${(props.draftGlowEnabled ?? false) ? 'translate-x-5' : 'translate-x-0'}`} />
                                         </button>
                                     </label>
                                 </div>
+
+                                {props.draftGlowEnabled && (
+                                    <>
+                                        <label className="block text-sm text-gray-300 mt-2">Cor do glow</label>
+                                        <div className="flex gap-2 mt-2 items-center">
+                                            <input type="color" className="w-12 h-10 p-1 rounded bg-white/3 border border-white/5" value={props.draftGlowColor || '#00ffff'} onChange={(e) => props.setDraftGlowColor?.(e.target.value)} />
+                                            <input placeholder="#rrggbb" className="flex-1 p-2 rounded bg-white/3 border border-white/5 text-white" value={props.draftGlowColor ?? ''} onChange={(e) => props.setDraftGlowColor?.(e.target.value)} />
+                                        </div>
+                                        <label className="block text-sm text-gray-300 mt-2">Tamanho do glow (px)</label>
+                                        <div className="flex items-center gap-3">
+                                            <input type="range" min={0} max={40} value={props.draftGlowSize ?? 8} onChange={(e) => props.setDraftGlowSize?.(Number(e.target.value))} />
+                                            <span className="text-sm text-gray-300">{props.draftGlowSize ?? 8}px</span>
+                                        </div>
+                                        <label className="block text-sm text-gray-300 mt-3">Aplicar glow em</label>
+                                        <div className="mt-2 space-y-2">
+                                            <label className="flex items-center gap-3">
+                                                <span className="text-sm text-gray-300">Título</span>
+                                                <button type="button" role="switch" aria-checked={props.draftGlowTitle} onClick={() => props.setDraftGlowTitle?.(!(props.draftGlowTitle ?? false))} className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none ${(props.draftGlowTitle ?? false) ? 'bg-green-500' : 'bg-gray-600'}`}>
+                                                    <span className={`absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-white transition-transform duration-200 ${(props.draftGlowTitle ?? false) ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                </button>
+                                            </label>
+                                            <label className="flex items-center gap-3">
+                                                <span className="text-sm text-gray-300">Descrição</span>
+                                                <button type="button" role="switch" aria-checked={props.draftGlowDescription} onClick={() => props.setDraftGlowDescription?.(!(props.draftGlowDescription ?? false))} className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none ${(props.draftGlowDescription ?? false) ? 'bg-green-500' : 'bg-gray-600'}`}>
+                                                    <span className={`absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-white transition-transform duration-200 ${(props.draftGlowDescription ?? false) ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                </button>
+                                            </label>
+                                            <label className="flex items-center gap-3">
+                                                <span className="text-sm text-gray-300">Player</span>
+                                                <button type="button" role="switch" aria-checked={props.draftGlowMusic} onClick={() => props.setDraftGlowMusic?.(!(props.draftGlowMusic ?? false))} className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none ${(props.draftGlowMusic ?? false) ? 'bg-green-500' : 'bg-gray-600'}`}>
+                                                    <span className={`absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-white transition-transform duration-200 ${(props.draftGlowMusic ?? false) ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                </button>
+                                            </label>
+                                            <label className="flex items-center gap-3">
+                                                <span className="text-sm text-gray-300">Cards</span>
+                                                <button type="button" role="switch" aria-checked={props.draftGlowCards} onClick={() => props.setDraftGlowCards?.(!(props.draftGlowCards ?? false))} className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none ${(props.draftGlowCards ?? false) ? 'bg-green-500' : 'bg-gray-600'}`}>
+                                                    <span className={`absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-white transition-transform duration-200 ${(props.draftGlowCards ?? false) ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                </button>
+                                            </label>
+                                            <label className="flex items-center gap-3">
+                                                <span className="text-sm text-gray-300">Ícones</span>
+                                                <button type="button" role="switch" aria-checked={props.draftGlowIcons} onClick={() => props.setDraftGlowIcons?.(!(props.draftGlowIcons ?? false))} className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none ${(props.draftGlowIcons ?? false) ? 'bg-green-500' : 'bg-gray-600'}`}>
+                                                    <span className={`absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-white transition-transform duration-200 ${(props.draftGlowIcons ?? false) ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                </button>
+                                            </label>
+                                        </div>
+                                    </>
+                                )}
                             </>
                         )}
                     </div>

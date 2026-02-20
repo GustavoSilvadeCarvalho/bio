@@ -258,7 +258,16 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
             return;
         }
         try {
-            if (!f.type.startsWith('image/')) {
+            const isGif = f.type === 'image/gif' || f.name.toLowerCase().endsWith('.gif');
+            const isMp4 = f.type === 'video/mp4' || f.name.toLowerCase().endsWith('.mp4');
+            const isWebm = f.type === 'video/webm' || f.name.toLowerCase().endsWith('.webm');
+            if (isGif || isMp4 || isWebm) {
+                if (!profile?.is_premium) {
+                    setError('GIFs e vídeos (MP4/WebM) são exclusivos para usuários Premium');
+                    return;
+                }
+            }
+            if (!f.type.startsWith('image/') && !isMp4 && !isWebm) {
                 setError('Arquivo não é uma imagem');
                 return;
             }
@@ -303,6 +312,13 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
             return;
         }
         try {
+            const isGif = f.type === 'image/gif' || f.name.toLowerCase().endsWith('.gif');
+            const isMp4 = f.type === 'video/mp4' || f.name.toLowerCase().endsWith('.mp4');
+            const isWebm = f.type === 'video/webm' || f.name.toLowerCase().endsWith('.webm');
+            if ((isGif || isMp4 || isWebm) && !profile?.is_premium) {
+                setError('GIFs e vídeos (MP4/WebM) são exclusivos para usuários Premium');
+                return;
+            }
             if (!f.type.startsWith('image/') && !f.type.startsWith('video/')) {
                 setError('Arquivo não é uma imagem ou vídeo');
                 return;
@@ -411,9 +427,9 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
     }
 
     const cardBaseColor = editing ? draftCardColor : (profile?.background_color ?? undefined);
-    const cardGlassActive = editing ? draftCardGlass : !!profile?.settings?.card_glass;
+    const cardGlassActive = editing ? draftCardGlass : (profile?.is_premium ? !!profile?.settings?.card_glass : false);
     const cardOpacity = editing ? draftCardOpacity : profile?.settings?.card_opacity ?? 1;
-    const particlesActive = editing ? draftParticlesEnabled : !!profile?.settings?.mouse_particles;
+    const particlesActive = editing ? (draftParticlesEnabled && !!profile?.is_premium) : (!!profile?.settings?.mouse_particles && !!profile?.is_premium);
     let computedCardBg: string | undefined;
     if (cardGlassActive) {
         const baseAlpha = cardBaseColor ? 0.28 : 0.04;
@@ -430,19 +446,19 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
     }
 
     // saved glow settings (typed)
-    const savedGlowEnabled = typeof profile?.settings?.glow_enabled === 'boolean' ? !!profile!.settings!.glow_enabled : false;
-    const savedGlowColor = typeof profile?.settings?.glow_color === 'string' ? profile!.settings!.glow_color! : undefined;
-    const savedGlowSize = typeof profile?.settings?.glow_size === 'number' ? profile!.settings!.glow_size! : 8;
-    const savedGlowTitle = typeof profile?.settings?.glow_title === 'boolean' ? !!profile!.settings!.glow_title : false;
-    const savedGlowDescription = typeof profile?.settings?.glow_description === 'boolean' ? !!profile!.settings!.glow_description : false;
-    const savedGlowMusic = typeof profile?.settings?.glow_music === 'boolean' ? !!profile!.settings!.glow_music : false;
-    const savedGlowCards = typeof profile?.settings?.glow_cards === 'boolean' ? !!profile!.settings!.glow_cards : false;
-    const savedGlowIcons = typeof profile?.settings?.glow_icons === 'boolean' ? !!profile!.settings!.glow_icons : false;
+    const savedGlowEnabled = profile?.is_premium && typeof profile?.settings?.glow_enabled === 'boolean' ? !!profile!.settings!.glow_enabled : false;
+    const savedGlowColor = profile?.is_premium && typeof profile?.settings?.glow_color === 'string' ? profile!.settings!.glow_color! : undefined;
+    const savedGlowSize = profile?.is_premium && typeof profile?.settings?.glow_size === 'number' ? profile!.settings!.glow_size! : 8;
+    const savedGlowTitle = profile?.is_premium && typeof profile?.settings?.glow_title === 'boolean' ? !!profile!.settings!.glow_title : false;
+    const savedGlowDescription = profile?.is_premium && typeof profile?.settings?.glow_description === 'boolean' ? !!profile!.settings!.glow_description : false;
+    const savedGlowMusic = profile?.is_premium && typeof profile?.settings?.glow_music === 'boolean' ? !!profile!.settings!.glow_music : false;
+    const savedGlowCards = profile?.is_premium && typeof profile?.settings?.glow_cards === 'boolean' ? !!profile!.settings!.glow_cards : false;
+    const savedGlowIcons = profile?.is_premium && typeof profile?.settings?.glow_icons === 'boolean' ? !!profile!.settings!.glow_icons : false;
 
     return (
         <>
             <TiltWrapper outerClassName="w-[800px] flex justify-center" perspective={1000} maxRotate={tiltStrength} scale={1.03} innerClassName="relative w-full max-w-3xl bg-transparent border border-white/10 rounded-3xl p-8 shadow-[0_0_40px_rgba(0,0,0,0.5)] flex flex-col gap-8" innerStyle={computedInnerStyle}>
-                {(editing ? draftParticlesEnabled : !!profile?.settings?.mouse_particles) && (
+                {particlesActive && (
                     <MouseParticles
                         color={editing ? draftParticlesColor : profile?.settings?.mouse_particles_color ?? '#58a6ff'}
                         count={editing ? draftParticlesCount : profile?.settings?.mouse_particles_count ?? 3}
@@ -458,11 +474,18 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
                     <div className="relative group">
                         <div className="w-32 h-32 rounded-full border-4 overflow-hidden shadow-xl transition-all duration-500 border-white/10 bg-gray-800 flex items-center justify-center text-white/90">
                             {avatarSrc ? (
-                                (avatarSrc.toLowerCase().endsWith('.gif') || avatarSrc.toLowerCase().includes('.gif')) ? (
-                                    <img src={avatarSrc} alt={`${username} avatar`} width={128} height={128} className="w-full h-full object-cover transition-transform duration-[10s]" />
-                                ) : (
-                                    <Image src={avatarSrc} alt={`${username} avatar`} width={128} height={128} className="w-full h-full object-cover transition-transform duration-[10s]" />
-                                )
+                                (() => {
+                                    const s = (avatarSrc || '').toLowerCase();
+                                    const isGifSrc = s.includes('.gif');
+                                    const isVideoSrc = s.includes('.mp4') || s.includes('.webm');
+                                    if (isGifSrc) {
+                                        return <img src={avatarSrc} alt={`${username} avatar`} width={128} height={128} className="w-full h-full object-cover transition-transform duration-[10s]" />;
+                                    }
+                                    if (isVideoSrc) {
+                                        return <video src={avatarSrc} autoPlay loop muted playsInline className="w-full h-full object-cover" />;
+                                    }
+                                    return <Image src={avatarSrc} alt={`${username} avatar`} width={128} height={128} className="w-full h-full object-cover transition-transform duration-[10s]" />;
+                                })()
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-transparent text-2xl font-bold">{initials}</div>
                             )}
@@ -511,7 +534,7 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
                                 url={musicUrl}
                                 cardColor={editing ? draftMusicCardColor : (profile?.settings?.music_card_color ?? undefined)}
                                 showCard={editing ? draftShowMusicCard : (profile?.settings?.show_music_card ?? true)}
-                                glass={editing ? draftMusicCardGlass : !!profile?.settings?.music_card_glass}
+                                glass={editing ? draftMusicCardGlass : (profile?.is_premium ? !!profile?.settings?.music_card_glass : false)}
                                 opacity={editing ? draftMusicCardOpacity : profile?.settings?.music_card_opacity ?? 1}
                                 textColor={editing ? (draftMusicTextColor || undefined) : (typeof profile?.settings?.music_text_color === 'string' ? profile!.settings!.music_text_color! : undefined)}
                                 iconColor={editing ? (draftIconColor || undefined) : (typeof profile?.settings?.icon_color === 'string' ? profile!.settings!.icon_color! : undefined)}
@@ -634,6 +657,8 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
                         setDraftCardsTextColor={setDraftCardsTextColor}
                         draftIconColor={draftIconColor}
                         setDraftIconColor={setDraftIconColor}
+                        draftTiltStrength={tiltStrength}
+                        setDraftTiltStrength={setTiltStrength}
                         draftGlowEnabled={draftGlowEnabled}
                         setDraftGlowEnabled={setDraftGlowEnabled}
                         draftGlowColor={draftGlowColor}

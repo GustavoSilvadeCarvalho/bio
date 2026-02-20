@@ -1,4 +1,10 @@
+"use client";
+
+import { useState } from "react";
 import { Check } from "lucide-react"
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "");
 
 const plans = [
   {
@@ -95,6 +101,36 @@ export function Pricing() {
 
               <button
                 className={`w-full rounded-lg py-3.5 text-sm font-semibold transition-all active:scale-[0.97] ${plan.ctaStyle}`}
+                onClick={async () => {
+                  if (plan.name !== 'Premium') return;
+                  try {
+                    const { data: sessionData } = await supabase.auth.getSession();
+                    const session = sessionData?.session;
+                    if (!session || !session.access_token) {
+                      // redirect to login
+                      window.location.href = '/login';
+                      return;
+                    }
+
+                    const res = await fetch('/api/stripe/checkout', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${session.access_token}`,
+                      },
+                      body: JSON.stringify({}),
+                    });
+                    const json = await res.json();
+                    if (json?.url) {
+                      window.location.href = json.url;
+                    } else {
+                      alert(json?.error || 'Falha ao iniciar checkout');
+                    }
+                  } catch (err) {
+                    console.error(err);
+                    alert('Erro ao iniciar checkout');
+                  }
+                }}
               >
                 {plan.cta}
               </button>
