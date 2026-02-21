@@ -28,14 +28,10 @@ export async function uploadUserImageUpsert(
     .upload(path, file as any, { upsert: true, contentType });
   if (uploadError) throw uploadError;
 
-  const { data: publicData, error: publicErr } = supabase.storage
-    .from(bucket)
-    .getPublicUrl(uploadData.path);
-  if (publicErr) throw publicErr;
-
+  const publicRes = supabase.storage.from(bucket).getPublicUrl(uploadData.path);
   const result: { path: string; publicUrl?: string; signedUrl?: string } = {
     path: uploadData.path,
-    publicUrl: publicData.publicUrl,
+    publicUrl: publicRes?.data?.publicUrl,
   };
 
   if (makeSignedUrlSeconds && makeSignedUrlSeconds > 0) {
@@ -120,14 +116,10 @@ export async function uploadUserImageReplace(
 
   if (uploadError) throw uploadError;
 
-  const { data: publicData, error: publicErr } = supabase.storage
-    .from(bucket)
-    .getPublicUrl(uploadData.path);
-  if (publicErr) throw publicErr;
-
+  const publicRes = supabase.storage.from(bucket).getPublicUrl(uploadData.path);
   const result: { path: string; publicUrl?: string; signedUrl?: string } = {
     path: uploadData.path,
-    publicUrl: publicData.publicUrl,
+    publicUrl: publicRes?.data?.publicUrl,
   };
 
   if (makeSignedUrlSeconds && makeSignedUrlSeconds > 0) {

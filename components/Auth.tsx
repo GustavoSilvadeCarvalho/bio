@@ -36,28 +36,33 @@ export default function Auth() {
             return;
         }
 
-        try {
-            const client = (await import("../lib/supabaseClient")).getSupabaseClient();
-            setSb(client as any);
+        let subscriptionToUnsubscribe: any = null;
 
-            client.auth.getSession().then((res) => {
-                const session = res?.data?.session as Session | null;
-                if (session?.user) setUser(session.user);
-            }).catch(() => { });
+        (async () => {
+            try {
+                const client = (await import("../lib/supabaseClient")).getSupabaseClient();
+                setSb(client as any);
 
-            const { data: sub } = client.auth.onAuthStateChange((_event, session) => {
-                void _event;
-                setUser(session?.user ?? null);
-            });
+                client.auth.getSession().then((res) => {
+                    const session = res?.data?.session as Session | null;
+                    if (session?.user) setUser(session.user);
+                }).catch(() => { });
 
-            return () => {
-                try { sub?.subscription?.unsubscribe(); } catch (e) { void e; }
-            };
-        } catch (_e) {
-            setMessage("Supabase público não configurado (NEXT_PUBLIC_SUPABASE_*)");
-            return;
-        }
+                const { data: sub } = client.auth.onAuthStateChange((_event, session) => {
+                    void _event;
+                    setUser(session?.user ?? null);
+                });
 
+                subscriptionToUnsubscribe = sub?.subscription ?? null;
+            } catch (_e) {
+                setMessage("Supabase público não configurado (NEXT_PUBLIC_SUPABASE_*)");
+                return;
+            }
+        })();
+
+        return () => {
+            try { subscriptionToUnsubscribe?.unsubscribe?.(); } catch (e) { void e; }
+        };
     }, []);
 
     async function signInWithGitHub() {
