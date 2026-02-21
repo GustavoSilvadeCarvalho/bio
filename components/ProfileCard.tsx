@@ -6,7 +6,8 @@ import { FaDiscord, FaYoutube, FaTwitch, FaTiktok, FaSteam, FaEye, FaInstagram, 
 import { FaXTwitter } from "react-icons/fa6";
 import { IoMdAdd } from "react-icons/io";
 import { MusicPlayer } from "./MusicPlayer";
-import { createClient } from "@supabase/supabase-js";
+import { uploadUserImageUpsert } from "../lib/storage";
+import getSupabaseClient from "../lib/supabaseClient";
 import TiltWrapper from "./TiltWrapper";
 import SocialIcons from "./SocialIcons";
 import MouseParticles from './MouseParticles';
@@ -32,17 +33,18 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
     const [currentUser, setCurrentUser] = useState<{ id?: string; token?: string } | null>(null);
     useEffect(() => {
         if (typeof window === "undefined") return;
-        const NEXT_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const NEXT_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-        if (!NEXT_URL || !NEXT_KEY) return;
-        const sb = createClient(NEXT_URL, NEXT_KEY);
-        let mounted = true;
-        sb.auth.getSession().then((res) => {
-            const session = res?.data?.session;
-            if (!mounted) return;
-            if (session?.user) setCurrentUser({ id: session.user.id, token: session.access_token });
-        }).catch(() => { /* ignore */ });
-        return () => { mounted = false; };
+        try {
+            const sb = getSupabaseClient();
+            let mounted = true;
+            sb.auth.getSession().then((res) => {
+                const session = res?.data?.session;
+                if (!mounted) return;
+                if (session?.user) setCurrentUser({ id: session.user.id, token: session.access_token });
+            }).catch(() => { /* ignore */ });
+            return () => { mounted = false; };
+        } catch (_e) {
+            return;
+        }
     }, []);
 
     const [editing, setEditing] = useState(false);
@@ -133,7 +135,7 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
 
     const DEFAULT_MUSIC = null;
     const musicUrl = editing ? (draftMusic || null) : (profile?.music_url ?? profile?.settings?.music_url ?? null);
-    const [views] = useState<number>(() => 132);
+    const [views] = useState<number>(() => 777);
 
     useEffect(() => {
         let mounted = true;
@@ -278,22 +280,15 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
             }
 
             setAvatarUploading(true);
-            const sb = createClient(NEXT_URL, NEXT_KEY);
-            const fileName = `${username}-${Date.now()}-${f.name}`;
-
-            const res = await sb.storage.from('avatars').upload(fileName, f, { upsert: true });
-            if (res.error) {
-                setError(res.error.message || JSON.stringify(res.error));
-                setAvatarUploading(false);
-                return;
+            try {
+                const sb = getSupabaseClient();
+                const userIdForPath = String(currentUser?.id ?? username);
+                const result = await uploadUserImageUpsert(sb, 'avatars', userIdForPath, f, 'avatar');
+                setDraftAvatarUrl(result.publicUrl ? `${result.publicUrl}?t=${Date.now()}` : null);
+            } catch (err: unknown) {
+                const msg = err instanceof Error ? err.message : String(err);
+                setError(msg);
             }
-
-            const publicRes = sb.storage.from('avatars').getPublicUrl(fileName);
-            const publicUrl = publicRes?.data?.publicUrl ?? null;
-            if (!publicUrl) {
-                setError('Não foi possível obter URL pública do avatar');
-            }
-            setDraftAvatarUrl(publicUrl);
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : String(err);
             setError(msg);
@@ -330,22 +325,15 @@ export default function ProfileCard({ username, onBgColorChange }: ProfileCardPr
             }
 
             setAvatarUploading(true);
-            const sb = createClient(NEXT_URL, NEXT_KEY);
-            const fileName = `background-${username}-${Date.now()}-${f.name}`;
-
-            const res = await sb.storage.from('backgrounds').upload(fileName, f, { upsert: true });
-            if (res.error) {
-                setError(res.error.message || JSON.stringify(res.error));
-                setAvatarUploading(false);
-                return;
+            try {
+                const sb = getSupabaseClient();
+                const userIdForPath = String(currentUser?.id ?? username);
+                const result = await uploadUserImageUpsert(sb, 'backgrounds', userIdForPath, f, 'background');
+                setDraftPageImage(result.publicUrl ? `${result.publicUrl}?t=${Date.now()}` : null);
+            } catch (err: unknown) {
+                const msg = err instanceof Error ? err.message : String(err);
+                setError(msg);
             }
-
-            const publicRes = sb.storage.from('backgrounds').getPublicUrl(fileName);
-            const publicUrl = publicRes?.data?.publicUrl ?? null;
-            if (!publicUrl) {
-                setError('Não foi possível obter URL pública do background');
-            }
-            setDraftPageImage(publicUrl);
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : String(err);
             setError(msg);

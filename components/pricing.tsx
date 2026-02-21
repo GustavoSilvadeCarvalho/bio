@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { Check } from "lucide-react"
-import { createClient } from "@supabase/supabase-js";
+import getSupabaseClient from "../lib/supabaseClient";
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "");
+const supabase = (() => {
+  try { return getSupabaseClient(); } catch { return null as any }
+})();
 
 const plans = [
   {
@@ -107,7 +109,6 @@ export function Pricing() {
                     const { data: sessionData } = await supabase.auth.getSession();
                     const session = sessionData?.session;
                     if (!session || !session.access_token) {
-                      // redirect to login
                       window.location.href = '/login';
                       return;
                     }

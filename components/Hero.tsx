@@ -1,18 +1,21 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { ArrowRight, MessageCircle } from "lucide-react"
+import { MouseParallax } from "react-just-parallax";
 
 const members = [
-    { name: "aroc", slug: "/aroc", initials: "AR" },
-    { name: "kgdamn", slug: "/kgdamn", initials: "KG" },
-    { name: "shk1ng", slug: "/shk1ng", initials: "SH" },
-    { name: "afton", slug: "/afton", initials: "AF" },
-    { name: "tokyo", slug: "/tokyo", initials: "TO" },
-]
+    { name: "aroc", slug: "/aroc", initials: "AR", top: "30%", left: "0%" },
+    { name: "kgdamn", slug: "/kgdamn", initials: "KG", top: "45%", left: "95%" },
+    { name: "shk1ng", slug: "/shk1ng", initials: "SH", top: "80%", left: "10%" },
+    { name: "afton", slug: "/afton", initials: "AF", top: "20%", left: "70%" },
+    { name: "tokyo", slug: "/tokyo", initials: "TO", top: "75%", left: "75%" },
+];
 
 export function Hero() {
     const [username, setUsername] = useState("")
+    const router = useRouter()
     const trackRef = useRef<HTMLDivElement | null>(null)
     useEffect(() => {
         const track = trackRef.current
@@ -43,9 +46,33 @@ export function Hero() {
 
     return (
         <section className="w-full relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#09090b] px-6">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(#ffffff06_1.5px,transparent_1.5px)] bg-size-[32px_32px]" />
 
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(#ffffff06_1.5px,transparent_1.5px)] bg-size-[32px_32px]" />
             <div className="pointer-events-none absolute top-[15%] left-1/2 h-125 w-200 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#999999]/6 blur-[150px]" />
+
+            <MouseParallax enableOnTouchDevice isAbsolutelyPositioned>
+                <div className="absolute inset-0 w-full max-w-7xl left-1/2 -translate-x-1/2 pointer-events-none">
+                    {members.map((m, idx) => (
+                        <a
+                            key={`${m.name}-${idx}`}
+                            href={m.slug}
+                            className="absolute flex items-center gap-2.5 rounded-lg border border-[#232326] bg-[#111113]/80 pr-22 pl-4 pt-4 pb-4 px-12 transition-all hover:border-[#ffffff]/20 hover:scale-105 pointer-events-auto"
+                            style={{
+                                top: m.top,
+                                left: m.left
+                            }}
+                        >
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#1c1c1f] font-mono text-[10px] font-bold text-[#71717a]">
+                                {m.initials}
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-sm font-medium text-[#fafafa]">{m.name}</span>
+                                <span className="text-[12px] text-[#3f3f46]">{m.slug}</span>
+                            </div>
+                        </a>
+                    ))}
+                </div>
+            </MouseParallax>
 
             <div className="relative z-10 flex max-w-6xl flex-col items-center gap-10">
                 <a
@@ -81,59 +108,15 @@ export function Hero() {
                             aria-label="Nome de usuario"
                         />
                     </div>
-                    <button className="shrink-0 rounded-lg bg-[#949494] px-7 py-3.5 text-sm font-semibold text-[#fafafa] transition-all hover:bg-[#363636] active:scale-[0.97]">
+                    <button
+                        type="button"
+                        onClick={() => router.push(`/login?mode=signup&username=${encodeURIComponent(username)}`)}
+                        disabled={username.trim() === ""}
+                        className="shrink-0 rounded-lg bg-[#949494] px-7 py-3.5 text-sm font-semibold text-[#fafafa] transition-all hover:bg-[#363636] active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
                         Criar
                     </button>
                 </div>
-
-                <div className="w-full overflow-hidden max-w-4xl relative">
-                    <div ref={trackRef} className="carousel-track" aria-hidden="false">
-                        {[...members, ...members].map((m, idx) => (
-                            <div
-                                key={`${m.name}-${idx}`}
-                                className="carousel-item flex items-center gap-2.5 rounded-lg border border-[#232326] bg-[#111113]/80 pr-22 pl-4 pt-4 pb-4 px-12 transition-all hover:border-[#ffffff]/20"
-                            >
-                                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#1c1c1f] font-mono text-[10px] font-bold text-[#71717a]">
-                                    {m.initials}
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-sm font-medium text-[#fafafa]">{m.name}</span>
-                                    <span className="text-[12px] text-[#3f3f46]">{m.slug}</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    <div
-                        className="pointer-events-none absolute inset-y-0 left-0 w-20"
-                        style={{ background: 'linear-gradient(90deg, #09090b 0%, rgba(9,9,11,0) 100%)', zIndex: 20 }}
-                    />
-                    <div
-                        className="pointer-events-none absolute inset-y-0 right-0 w-20"
-                        style={{ background: 'linear-gradient(270deg, #09090b 0%, rgba(9,9,11,0) 100%)', zIndex: 20 }}
-                    />
-                </div>
-
-                <style jsx>{`
-                    .carousel-track {
-                        display: flex;
-                        flex-wrap: nowrap;
-                        gap: 10px;
-                        align-items: center;
-                        white-space: nowrap;
-                        /* duration and distance are set via JS to avoid rounding jumps */
-                        animation: scroll var(--scroll-duration, 18s) linear infinite;
-                    }
-                    .carousel-track:hover { animation-play-state: paused; }
-                    .carousel-item { flex: 0 0 auto; }
-                    @keyframes scroll {
-                        0% { transform: translateX(0); }
-                        100% { transform: translateX(calc(-1 * var(--scroll-width, 50%))); }
-                    }
-                `}</style>
-
-                {null}
-                <script suppressHydrationWarning>{""}</script>
-
             </div>
 
             <div className="pointer-events-none absolute right-0 bottom-0 left-0 h-32 bg-linear-to-t from-[#09090b] to-transparent" />

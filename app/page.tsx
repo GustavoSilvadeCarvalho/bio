@@ -1,5 +1,3 @@
-import Link from "next/link";
-import Auth from "../components/Auth";
 import { Navbar } from "@/components/Navbar";
 import { Hero } from "@/components/Hero";
 import { Pricing } from "@/components/pricing";

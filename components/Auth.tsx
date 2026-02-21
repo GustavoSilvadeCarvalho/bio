@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { SupabaseClient, User, Session } from "@supabase/supabase-js";
 import { FaGithub, FaDiscord } from "react-icons/fa";
 
@@ -17,6 +16,17 @@ export default function Auth() {
     const router = useRouter();
     const [username, setUsername] = useState<string | null>(null);
 
+    const searchParams = useSearchParams();
+
+    useEffect(() => {
+        try {
+            const modeParam = searchParams.get("mode");
+            const usernameParam = searchParams.get("username");
+            if (modeParam === "signup") setMode("signup");
+            if (usernameParam) setUsername(usernameParam);
+        } catch (_e) { /* ignore in SSR or if no params */ }
+    }, [searchParams]);
+
     useEffect(() => {
         if (typeof window === "undefined") return;
         const NEXT_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -26,22 +36,28 @@ export default function Auth() {
             return;
         }
 
-        const client = createClient(NEXT_URL, NEXT_KEY);
-        setSb(client);
+        try {
+            const client = (await import("../lib/supabaseClient")).getSupabaseClient();
+            setSb(client as any);
 
-        client.auth.getSession().then((res) => {
-            const session = res?.data?.session as Session | null;
-            if (session?.user) setUser(session.user);
-        }).catch(() => { });
+            client.auth.getSession().then((res) => {
+                const session = res?.data?.session as Session | null;
+                if (session?.user) setUser(session.user);
+            }).catch(() => { });
 
-        const { data: sub } = client.auth.onAuthStateChange((_event, session) => {
-            void _event;
-            setUser(session?.user ?? null);
-        });
+            const { data: sub } = client.auth.onAuthStateChange((_event, session) => {
+                void _event;
+                setUser(session?.user ?? null);
+            });
 
-        return () => {
-            try { sub?.subscription?.unsubscribe(); } catch (e) { void e; }
-        };
+            return () => {
+                try { sub?.subscription?.unsubscribe(); } catch (e) { void e; }
+            };
+        } catch (_e) {
+            setMessage("Supabase público não configurado (NEXT_PUBLIC_SUPABASE_*)");
+            return;
+        }
+
     }, []);
 
     async function signInWithGitHub() {
@@ -57,8 +73,9 @@ export default function Auth() {
     }
 
     useEffect(() => {
-        setUsername(null);
         if (!sb || !user) return;
+        // clear only when we have a logged-in user and are about to fetch their profile
+        setUsername(null);
         (async () => {
             try {
                 const { data, error } = await sb
@@ -92,7 +109,6 @@ export default function Auth() {
         setLoading(true);
         setMessage(null);
         try {
-            // pass username in user_metadata so DB trigger can use it when creating profile
             const { error } = await sb.auth.signUp({
                 email,
                 password,
