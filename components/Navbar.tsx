@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
-import Image from "next/image"
 import { ArrowUpRight } from "lucide-react"
 import LogoGLB from './LogoGLB'
 

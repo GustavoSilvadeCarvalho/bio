@@ -14,7 +14,6 @@ export function normalizeLinks(raw: unknown): Link[] {
 export function resolveMusicUrl(p?: Profile | null): string | null {
   if (!p) return null;
   const s = p.settings;
-  // support a few legacy key names that might appear in settings
   const alt = (() => {
     if (!s) return null;
     if (typeof s.music_url === "string") return s.music_url;
@@ -28,4 +27,48 @@ export function resolveMusicUrl(p?: Profile | null): string | null {
     return null;
   })();
   return p.music_url || alt || null;
+}
+
+export function hexToRgba(hex: string, alpha = 1) {
+  try {
+    const h = hex.replace("#", "").trim();
+    const bigint = parseInt(
+      h.length === 3
+        ? h
+            .split("")
+            .map((c) => c + c)
+            .join("")
+        : h,
+      16,
+    );
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  } catch {
+    return `rgba(255,255,255,${alpha})`;
+  }
+}
+
+export function getIconForPlatform(platformOrUrl: string) {
+  const p = (platformOrUrl || "").toLowerCase();
+  if (p.includes("discord")) return "discord";
+  if (p.includes("steam")) return "steam";
+  if (p.includes("youtube") || p.includes("youtu")) return "youtube";
+  if (p.includes("twitch")) return "twitch";
+  if (p.includes("tiktok")) return "tiktok";
+  if (p.includes("instagram")) return "instagram";
+  if (p.includes("github")) return "github";
+  if (p === "x" || p.includes("twitter") || p.includes("x.com")) return "x";
+  return "github";
+}
+
+export function displayUrl(raw: string) {
+  try {
+    const u = new URL(raw);
+    return u.hostname.replace("www.", "");
+  } catch {
+    if (!raw) return "";
+    return raw.length > 24 ? raw.slice(0, 21) + "..." : raw;
+  }
 }

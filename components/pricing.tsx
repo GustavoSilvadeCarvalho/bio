@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { Check } from "lucide-react"
 import getSupabaseClient from "../lib/supabaseClient";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-const supabase = (() => {
-  try { return getSupabaseClient(); } catch { return null as any }
+const supabase: SupabaseClient | null = (() => {
+  try { return getSupabaseClient(); } catch { return null; }
 })();
 
 const plans = [
@@ -106,6 +106,7 @@ export function Pricing() {
                 onClick={async () => {
                   if (plan.name !== 'Premium') return;
                   try {
+                    if (!supabase) { window.location.href = '/login'; return; }
                     const { data: sessionData } = await supabase.auth.getSession();
                     const session = sessionData?.session;
                     if (!session || !session.access_token) {

@@ -1,9 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-/**
- * Upload user image using no-extension + upsert (recommended).
- * Saves to `${userId}_${kind}` and relies on `upsert: true` to replace previous file.
- */
 export async function uploadUserImageUpsert(
   supabase: SupabaseClient,
   bucket: string,
@@ -12,9 +8,8 @@ export async function uploadUserImageUpsert(
   kind: "avatar" | "background",
   makeSignedUrlSeconds?: number,
 ): Promise<{ path: string; publicUrl?: string; signedUrl?: string }> {
-  const path = `${userId}_${kind}`; // no extension
+  const path = `${userId}_${kind}`;
 
-  // try to infer content type from File/Blob
   let contentType: string | undefined = undefined;
   try {
     if (typeof (file as File).type === "string")
@@ -45,13 +40,6 @@ export async function uploadUserImageUpsert(
   return result;
 }
 
-/**
- * Alternative: keep extension in filename. This lists any existing files that begin with
- * `${userId}_${kind}` and removes them (except the new one), then uploads the new file
- * using the derived extension from `originalFilename` (preferred for keeping extension).
- *
- * Note: for Buffer uploads you should pass `originalFilename` or `contentType`.
- */
 export async function uploadUserImageReplace(
   supabase: SupabaseClient,
   bucket: string,
@@ -61,17 +49,14 @@ export async function uploadUserImageReplace(
   originalFilename?: string,
   makeSignedUrlSeconds?: number,
 ): Promise<{ path: string; publicUrl?: string; signedUrl?: string }> {
-  // derive extension from originalFilename if present
   let ext = "";
   if (originalFilename) {
     const idx = originalFilename.lastIndexOf(".");
-    if (idx !== -1) ext = originalFilename.slice(idx); // includes dot
+    if (idx !== -1) ext = originalFilename.slice(idx);
   } else {
-    // try to get from File.type (rare)
     try {
       const t = (file as File).type;
       if (t) {
-        // crude map for common types
         if (t === "image/jpeg") ext = ".jpg";
         else if (t === "image/png") ext = ".png";
         else if (t === "image/gif") ext = ".gif";
@@ -84,7 +69,6 @@ export async function uploadUserImageReplace(
 
   const newPath = `${userId}_${kind}${ext}`;
 
-  // list any files that start with `${userId}_${kind}` and remove them (except newPath)
   const { data: listData, error: listErr } = await supabase.storage
     .from(bucket)
     .list(userId ? `${userId}_${kind}` : "", { limit: 100 });
@@ -101,7 +85,6 @@ export async function uploadUserImageReplace(
     if (delErr) throw delErr;
   }
 
-  // try to infer content type
   let contentType: string | undefined = undefined;
   try {
     if (typeof (file as File).type === "string")

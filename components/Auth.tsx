@@ -36,12 +36,12 @@ export default function Auth() {
             return;
         }
 
-        let subscriptionToUnsubscribe: any = null;
+        let subscriptionToUnsubscribe: { unsubscribe?: () => void } | null = null;
 
         (async () => {
             try {
                 const client = (await import("../lib/supabaseClient")).getSupabaseClient();
-                setSb(client as any);
+                setSb(client);
 
                 client.auth.getSession().then((res) => {
                     const session = res?.data?.session as Session | null;
@@ -113,12 +113,12 @@ export default function Auth() {
         if (!email || !password) return setMessage("Informe email e senha");
         setLoading(true);
         setMessage(null);
-        try {
-            const { error } = await sb.auth.signUp({
-                email,
-                password,
-                options: { data: { username: username ?? undefined } },
-            } as any);
+            try {
+                const { error } = await sb.auth.signUp({
+                    email,
+                    password,
+                    options: { data: { username: username ?? undefined } },
+                });
             if (error) setMessage(error.message);
             else setMessage("Conta criada. Verifique seu e-mail se for requerido.");
         } catch (err: unknown) {

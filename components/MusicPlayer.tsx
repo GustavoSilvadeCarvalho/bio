@@ -32,7 +32,6 @@ function loadYTApi(): Promise<void> {
         }
         const existing = document.querySelector('script[src*="youtube.com/iframe_api"]') as HTMLScriptElement | null
         if (existing) {
-            // if already present, wait until YT is ready but timeout if blocked
             const start = Date.now()
             const id = setInterval(() => {
                 if (window.YT?.Player) { clearInterval(id); resolve() }
@@ -173,7 +172,6 @@ function useYTPlayer(url: string, attemptKey = 0) {
                 player.current.playVideo()
             }
         } catch {
-            // fallback: attempt to play if we can't read state
             try { player.current.playVideo() } catch { }
         }
     }, [])
@@ -221,20 +219,15 @@ export function MusicPlayer({ url, cardColor, showCard = true, glass = false, op
     useEffect(() => {
         if (!ready) return;
 
-        // 1. Verifica PRIMEIRO se já fizemos a rotina de autoplay.
-        // Se sim, cai fora! Isso impede que ele force o play quando você tentar pausar.
         if (autoplayAttempted.current) return;
 
-        // 2. Marca na memória IMEDIATAMENTE que já passou por aqui
         autoplayAttempted.current = true;
 
-        // 3. Se a música já estiver tocando, apenas esconde o aviso e encerra
         if (playing) {
             setTimeout(() => setShowPlayPrompt(false), 0);
             return;
         }
 
-        // 4. Se não estiver, tenta dar o play forçado
         try { toggle() } catch { }
 
         const id = setTimeout(() => {
@@ -245,11 +238,10 @@ export function MusicPlayer({ url, cardColor, showCard = true, glass = false, op
     }, [ready, playing, toggle]);
 
     useEffect(() => {
-        // Se já interagiu antes, ou já está tocando, ou o player não está pronto: ignora.
         if (playing || !ready || hasInteracted.current) return;
 
         function onUserInteract() {
-            hasInteracted.current = true; // Salva na memória que o usuário já interagiu!
+            hasInteracted.current = true;
             try {
                 toggle();
                 setShowPlayPrompt(false);

@@ -7,7 +7,6 @@ export function getSupabaseClient(): SupabaseClient {
   const NEXT_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   const NEXT_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
   if (!NEXT_URL || !NEXT_KEY) {
-    // createClient will throw if key missing; keep behavior consistent
     _client = createClient(NEXT_URL, NEXT_KEY);
   } else {
     _client = createClient(NEXT_URL, NEXT_KEY);
